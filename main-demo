@@ -1,233 +1,497 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Memex — Three-Tier Cosmic Node Engine</title>
+    <title>The Memex — Scholar Console</title>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=Inter:wght@400;600&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    
     <style>
         :root {
-            --bg-desk: #141210;
-            --panel-wood: #261f18;
-            --glow-green: #52b788;
-            --brass: #d4af37;
-            --cyan: #00b4d8;
-            --text-light: #e0d6c8;
+            --bg-main: #fdfcf7;         /* Warm linen paper canvas */
+            --bg-panel: #f5f2e9;        /* Deep academic library paneling */
+            --border-crisp: #dcd6c8;    /* Muted bookbinding seam grey */
+            --text-main: #1c2331;       /* Dense scholar charcoal-navy */
+            --text-muted: #5c667a;      /* Soft slate blue-grey for sub-data */
+            --navy-solid: #0b1a30;      /* Primary structural solid library navy */
+            --gold-brass: #b89047;      /* Burnished instrument gold */
+            --gold-glow: rgba(184, 144, 71, 0.12);
+            
+            --font-heading: 'Merriweather', serif;
+            --font-body: 'Inter', sans-serif;
+            --font-mono: 'Fira Code', monospace;
         }
 
         body {
             margin: 0;
             padding: 0;
-            background-color: var(--bg-desk);
-            font-family: 'Courier New', Courier, monospace;
-            color: var(--text-light);
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            font-family: var(--font-body);
             height: 100vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
 
+        /* Control Console Header */
         header {
-            background: #0b0a09;
-            padding: 15px 20px;
-            border-bottom: 2px solid var(--brass);
+            background: var(--navy-solid);
+            color: #ffffff;
+            padding: 12px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-bottom: 3px solid var(--gold-brass);
+            box-shadow: 0 4px 15px rgba(11, 26, 48, 0.08);
+            z-index: 10;
         }
 
-        h1 { margin: 0; font-size: 1.2rem; color: var(--brass); letter-spacing: 2px; }
+        header h1 {
+            margin: 0;
+            font-family: var(--font-heading);
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+        }
 
-        .layout { display: flex; flex-grow: 1; height: calc(100vh - 55px); }
-        .canvas-area { flex-grow: 1; position: relative; background: radial-gradient(circle, #1c1a16 0%, #080706 100%); }
-        #network-graph { width: 100%; height: 100%; }
+        .view-btn {
+            background: transparent;
+            border: 1px solid var(--gold-brass);
+            color: var(--gold-brass);
+            padding: 6px 12px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            cursor: pointer;
+            border-radius: 3px;
+            font-weight: bold;
+            display: none; /* Controlled via JS state */
+        }
 
-        .hud-panel {
+        .view-btn:hover {
+            background: var(--gold-brass);
+            color: var(--navy-solid);
+        }
+
+        /* View Switching Containers */
+        .app-view {
+            display: none;
+            width: 100vw;
+            height: calc(100vh - 55px);
+            box-sizing: border-box;
+        }
+
+        .app-view.active {
+            display: flex;
+        }
+
+        /* ==========================================================================
+           VIEW 1: FULL SCREEN DYNAMIC TOPOLOGY MAP
+           ========================================================================== */
+        #map-view-container {
+            position: relative;
+            background: radial-gradient(circle, #fdfcf7 0%, #edeae0 100%);
+            width: 100%;
+            height: 100%;
+        }
+
+        #topology-graph {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Floating HUD Inspector Overlays */
+        .hud-inspector {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(11, 10, 9, 0.95);
-            border: 1px solid var(--brass);
-            padding: 15px;
+            bottom: 30px;
+            left: 30px;
+            background: rgba(253, 252, 247, 0.95);
+            border: 1px solid var(--border-crisp);
+            border-left: 5px solid var(--navy-solid);
+            padding: 20px;
             border-radius: 4px;
-            max-width: 320px;
-            pointer-events: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+            max-width: 360px;
+            box-shadow: 0 10px 30px rgba(11, 26, 48, 0.08);
+            display: block;
         }
 
-        .hud-title { color: var(--brass); font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
-        .hud-tier { font-size: 0.75rem; color: var(--cyan); margin-bottom: 8px; font-weight: bold; }
-        .hud-body { font-size: 0.85rem; color: #b5ad9e; line-height: 1.4; }
+        .hud-title {
+            font-family: var(--font-heading);
+            font-size: 1.1rem;
+            color: var(--navy-solid);
+            margin: 0 0 5px 0;
+        }
+
+        .hud-meta {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--gold-brass);
+            margin-bottom: 12px;
+            font-weight: bold;
+        }
+
+        .hud-body {
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+        }
+
+        .action-btn {
+            background: var(--bg-main);
+            border: 1px solid var(--border-crisp);
+            color: var(--text-main);
+            padding: 6px 14px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            cursor: pointer;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+
+        .action-btn:hover {
+            background: var(--navy-solid);
+            color: #fff;
+            border-color: var(--navy-solid);
+        }
+
+        /* ==========================================================================
+           VIEW 2: SPLIT SCREEN READING DESK
+           ========================================================================== */
+        #desk-view-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+        }
+
+        /* Code Book Side Control Panel */
+        .desk-sidebar {
+            background-color: var(--bg-panel);
+            border-right: 1px solid var(--border-crisp);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .section-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--navy-solid);
+            border-bottom: 1px solid var(--border-crisp);
+            padding-bottom: 5px;
+        }
+
+        .mnemonic-card {
+            background: var(--bg-main);
+            border: 1px solid var(--border-crisp);
+            padding: 10px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 8px;
+            font-size: 0.8rem;
+        }
+
+        .mnemonic-card:hover {
+            border-color: var(--gold-brass);
+        }
+
+        /* Reading viewports frame */
+        .desk-screens-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 25px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .translucent-viewport {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-crisp);
+            border-radius: 6px;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            position: relative;
+        }
+
+        .viewport-header {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            border-bottom: 1px dashed var(--border-crisp);
+            padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .viewport-content {
+            flex-grow: 1;
+            font-family: var(--font-heading);
+            line-height: 1.7;
+            font-size: 0.95rem;
+        }
+
+        .viewport-content h2 {
+            margin-top: 0;
+            color: var(--navy-solid);
+        }
+
+        .annotation-stack {
+            position: relative;
+            height: 150px;
+            border: 1px solid var(--border-crisp);
+            border-radius: 4px;
+            background: var(--bg-main);
+        }
+
+        .typing-layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: none;
+            outline: none;
+            font-family: var(--font-heading);
+            font-style: italic;
+            background: transparent;
+            z-index: 1;
+        }
+
+        .canvas-layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            cursor: crosshair;
+        }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>MEMEX // MULTI-TIER KINETIC REPOSITORY</h1>
-        <div style="font-size: 0.8rem; color: var(--glow-green);">HIERARCHICAL PLANET STRUCTURE ONLINE</div>
+        <h1>Vannevar Bush Memex // Scholar Console</h1>
+        <button class="view-btn" id="return-map-btn" onclick="switchToView('map')">⏮ Return to Topology Map</button>
+        <div class="gold-indicator" id="global-badge">MAP HUD MONITOR ACTIVE</div>
     </header>
 
-    <div class="layout">
-        <div class="canvas-area">
-            <div id="network-graph"></div>
+    <div class="app-view active" id="view-map">
+        <div id="map-view-container">
+            <div id="topology-graph"></div>
             
-            <!-- Contextual HUD -->
-            <div class="hud-panel">
-                <div class="hud-title" id="hud-name">Console Initialized</div>
-                <div class="hud-tier" id="hud-tier">SYSTEM STANDBY</div>
-                <div class="hud-body" id="hud-desc">Tap a golden Subject Sun to reveal Document Planets. Tap a Document Title Planet to branch out its Page Flag Moons.</div>
+            <div class="hud-inspector" id="inspector-panel">
+                <div class="hud-title" id="inspect-title">System Ready</div>
+                <div class="hud-meta" id="inspect-meta">STANDBY MODE</div>
+                <div class="hud-body" id="inspect-desc">
+                    Tap a high-level Subject Sun to pull local document stars into dynamic gravity alignment. Expand down to a specific Page Moon to engage the reading desk.
+                </div>
+                <div id="inspect-action-container" style="display: none; text-align: right;">
+                    <button class="action-btn" style="border-color: var(--gold-brass); color: var(--gold-brass);" onclick="callUpActiveSelection()">Project to Translucent Screens ➔</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-view" id="view-desk">
+        <div class="workspace-grid" id="desk-view-container">
+            <div class="desk-sidebar">
+                <div class="section-label">Mnemonic Index Registry</div>
+                <div id="sidebar-cards"></div>
+                
+                <div class="section-label">Mechanical Operations</div>
+                <button class="action-btn" onclick="alert('[LINK METRIC] Relational trail bound to cloud repository.')">Weld Link Matrix</button>
+            </div>
+
+            <div class="desk-screens-area">
+                <div class="translucent-viewport">
+                    <div class="viewport-header"><span>VIEWPORT POSITION ALPHA</span><span id="meta-A">INDEX</span></div>
+                    <div class="viewport-content" id="content-A"></div>
+                    <div class="section-label">Stylus Workspace Canvas</div>
+                    <div class="annotation-stack"><textarea class="typing-layer" placeholder="Type comments..."></textarea><canvas class="canvas-layer" id="can-A"></canvas></div>
+                </div>
+                <div class="translucent-viewport">
+                    <div class="viewport-header"><span>VIEWPORT POSITION BETA</span><span id="meta-B">INDEX</span></div>
+                    <div class="viewport-content" id="content-B">
+                        <h2>Position Beta</h2>
+                        <p style="color:var(--text-muted)">Load secondary materials side-by-side to build your associative trails.</p>
+                    </div>
+                    <div class="section-label">Stylus Workspace Canvas</div>
+                    <div class="annotation-stack"><textarea class="typing-layer" placeholder="Type comments..."></textarea><canvas class="canvas-layer" id="can-B"></canvas></div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
+        // Centralized Microfilm Corpus
+        const mockDatabase = {
+            "DOC_BOW": { title: "Book: Origins of the Bow", parent: "SUBJ_BALLISTICS", pages: [
+                "<h2>Origins of the Ballistic Stave</h2><p>The mechanical efficiency of archery tracks directly to the late Paleolithic era. Early constructs prioritized raw, single-stave wood design parameters to force dynamic kinetic energy yield.</p>",
+                "<h2>Tactical Deployments in Antioch</h2><p>During localized Crusade skirmishes, European armored units encountered devastating projectile resistance from light horse archers exploiting fast-release compound weapon frameworks.</p>"
+            ]},
+            "DOC_ARROW": { title: "Manual: Projectile Metrics", parent: "SUBJ_BALLISTICS", pages: [
+                "<h2>Initial Velocity Scaling</h2><p>Calculated release properties demonstrate that arrow flight stabilization relies cleanly on drag coefficients and spine stiffness variables relative to draw weight dimensions.</p>"
+            ]}
+        };
+
+        const subjects = { "SUBJ_BALLISTICS": "BALLISTICS & ARCHERY" };
         let nodesDataset, edgesDataset, network;
-        
-        // Tier 1: Overarching Subject Suns
-        const subjects = {
-            'SUBJ_BALLISTICS': { id: 'SUBJ_BALLISTICS', label: 'BALLISTICS & ARCHERY', type: 'sun', desc: 'Master study tracking projectile systems, combat implementation, and mechanical weapon evolution.' }
+        let expandedNodes = {};
+        let currentSelection = null; // Caches target page coordinates
+
+        window.onload = function() {
+            initTopologyMap();
+            buildSidebarRegistry();
+            initCanvas('can-A');
+            initCanvas('can-B');
         };
 
-        // Tier 2: Document Planets (Orbiting the Suns)
-        const documents = {
-            'DOC_BOW': { id: 'DOC_BOW', parent: 'SUBJ_BALLISTICS', label: 'Book: Origins of the Bow', type: 'planet', desc: 'Comprehensive encyclopedia asset logging early ballistic staves and construction types.' },
-            'DOC_ARROW': { id: 'DOC_ARROW', parent: 'SUBJ_BALLISTICS', label: 'Journal: Crusade Tactics', type: 'planet', desc: 'Military field dispatches tracking tactical release speeds and missile penetration parameters.' }
-        };
+        // Switch Engine States cleanly
+        function switchToView(viewMode) {
+            const mapEl = document.getElementById('view-map');
+            const deskEl = document.getElementById('view-desk');
+            const btn = document.getElementById('return-map-btn');
+            const badge = document.getElementById('global-badge');
 
-        // Tier 3: Page Flag Moons (Branching off explicit Document Title Planets)
-        const pageFlags = {
-            'DOC_BOW': [
-                { id: 'FLAG_BOW_P2', label: 'P.2: Horse Archers', desc: 'Annotated coordinate tracking operational movement mechanics of eastern units.' },
-                { id: 'FLAG_BOW_P3', label: 'P.3: Turkish Design', desc: 'Stylus profile sketch mapping out the reflex curve elasticity parameters.' }
-            ],
-            'DOC_ARROW': [
-                { id: 'FLAG_ARROW_P1', label: 'P.1: Penetration Formula', desc: 'Mathematical index tracking dynamic velocity metrics against heavy plate armor.' }
-            ]
-        };
-
-        let expandedSuns = {};
-        let expandedPlanets = {};
-
-        function initNetwork() {
-            nodesDataset = new vis.DataSet();
-            edgesDataset = new vis.DataSet();
-
-            // Render Tier 1: Suns
-            Object.values(subjects).forEach(sun => {
-                nodesDataset.add({
-                    id: sun.id,
-                    label: sun.label,
-                    shape: 'dot',
-                    size: 32,
-                    font: { face: 'Courier New', color: '#fff', size: 15, bold: true },
-                    color: { background: '#1c1712', border: '#d4af37', highlight: { background: '#d4af37', border: '#fff' } },
-                    borderWidth: 3
-                });
-            });
-
-            const container = document.getElementById('network-graph');
-            const data = { nodes: nodesDataset, edges: edgesDataset };
-            const options = {
-                physics: {
-                    barnesHut: { gravitationalConstant: -2000, centralGravity: 0.1, springLength: 90, springConstant: 0.05 }
-                },
-                interaction: { zoomView: true, dragView: true }
-            };
-
-            network = new vis.Network(container, data, options);
-
-            network.on("click", function(params) {
-                if (params.nodes.length > 0) {
-                    handleNodeTap(params.nodes[0]);
-                }
-            });
-        }
-
-        function handleNodeTap(id) {
-            // Click Tier 1: Subject Sun
-            if (subjects[id]) {
-                const sun = subjects[id];
-                updateHUD(sun.label, "TIER 1: SUBJECT GROUP", sun.desc);
-                if (expandedSuns[id]) collapseSun(id); else expandSun(id);
-            } 
-            // Click Tier 2: Document Planet
-            else if (documents[id]) {
-                const doc = documents[id];
-                updateHUD(doc.label, "TIER 2: DOCUMENT SUN", doc.desc);
-                if (expandedPlanets[id]) collapsePlanet(id); else expandPlanet(id);
-            } 
-            // Click Tier 3: Page Flag Moon
-            else {
-                let flag = null;
-                Object.values(pageFlags).flat().forEach(f => { if(f.id === id) flag = f; });
-                if (flag) {
-                    updateHUD(`FLAG: ${flag.label}`, "TIER 3: PAGE ANCHOR MOON", `${flag.desc}\n\n[Action: Command desktop console or swipe to slide this page image into active view]`);
-                }
+            if (viewMode === 'map') {
+                mapEl.classList.add('active');
+                deskEl.classList.remove('active');
+                btn.style.display = 'none';
+                badge.innerText = "MAP HUD MONITOR ACTIVE";
+            } else {
+                deskEl.classList.add('active');
+                mapEl.classList.remove('active');
+                btn.style.display = 'block';
+                badge.innerText = "DESK DESKTOP ENGAGED";
             }
         }
 
-        function updateHUD(name, tier, desc) {
-            document.getElementById('hud-name').innerText = name;
-            document.getElementById('hud-tier').innerText = tier;
-            document.getElementById('hud-desc').innerText = desc;
-        }
+        function initTopologyMap() {
+            nodesDataset = new vis.DataSet();
+            edgesDataset = new vis.DataSet();
 
-        function expandSun(sunId) {
-            Object.values(documents).forEach(doc => {
-                if (doc.parent === sunId) {
-                    nodesDataset.add({
-                        id: doc.id,
-                        label: doc.label,
-                        shape: 'dot',
-                        size: 20,
-                        font: { face: 'Courier New', color: 'var(--text-light)', size: 12, bold: true },
-                        color: { background: '#0b0a09', border: 'var(--cyan)', highlight: { background: 'var(--cyan)', border: '#fff' } },
-                        borderWidth: 2
-                    });
-                    edgesDataset.add({ id: `edge_${doc.id}`, from: sunId, to: doc.id, color: { color: 'var(--cyan)', opacity: 0.5 }, width: 2 });
-                }
-            });
-            expandedSuns[sunId] = true;
-        }
-
-        function collapseSun(sunId) {
-            Object.values(documents).forEach(doc => {
-                if (doc.parent === sunId) {
-                    if (expandedPlanets[doc.id]) collapsePlanet(doc.id);
-                    if (nodesDataset.get(doc.id)) nodesDataset.remove(doc.id);
-                    if (edgesDataset.get(`edge_${doc.id}`)) edgesDataset.remove(`edge_${doc.id}`);
-                }
-            });
-            delete expandedSuns[sunId];
-        }
-
-        function expandPlanet(planetId) {
-            const flags = pageFlags[planetId] || [];
-            flags.forEach(flag => {
+            Object.entries(subjects).forEach(([key, val]) => {
                 nodesDataset.add({
-                    id: flag.id,
-                    label: flag.label,
-                    shape: 'dot',
-                    size: 11,
-                    font: { face: 'Courier New', color: '#b5ad9e', size: 11 },
-                    color: { background: '#141210', border: 'var(--glow-green)', highlight: { background: 'var(--glow-green)', border: '#fff' } },
-                    borderWidth: 1.5
+                    id: key, label: val, shape: 'dot', size: 28,
+                    font: { face: 'Merriweather', size: 14, bold: true, color: '#0b1a30' },
+                    color: { background: '#fdfcf7', border: '#b89047' }, borderWidth: 3
                 });
-                edgesDataset.add({ id: `edge_${flag.id}`, from: planetId, to: flag.id, color: { color: 'var(--glow-green)', opacity: 0.6 }, width: 1.5 });
             });
-            expandedPlanets[planetId] = true;
+
+            network = new vis.Network(document.getElementById('topology-graph'), { nodes: nodesDataset, edges: edgesDataset }, {
+                physics: { barnesHut: { gravitationalConstant: -1800, centralGravity: 0.1, springLength: 90 } }
+            });
+            
+            network.on("click", (p) => { if(p.nodes.length > 0) handleNodeClick(p.nodes[0]); });
         }
 
-        function collapsePlanet(planetId) {
-            const flags = pageFlags[planetId] || [];
-            flags.forEach(flag => {
-                if (nodesDataset.get(flag.id)) nodesDataset.remove(flag.id);
-                if (edgesDataset.get(`edge_${flag.id}`)) edgesDataset.remove(`edge_${flag.id}`);
-            });
-            delete expandedPlanets[planetId];
+        function handleNodeClick(id) {
+            const title = document.getElementById('inspect-title');
+            const meta = document.getElementById('inspect-meta');
+            const desc = document.getElementById('inspect-desc');
+            const actionContainer = document.getElementById('inspect-action-container');
+
+            if (subjects[id]) {
+                title.innerText = subjects[id]; meta.innerText = "TIER 1: THEME SUN";
+                desc.innerText = "Broad umbrella indexing complex ballistic weapon systems and combat metrics.";
+                actionContainer.style.display = 'none';
+                if (expandedNodes[id]) collapseSubject(id); else expandSubject(id);
+            } 
+            else if (mockDatabase[id]) {
+                title.innerText = id; meta.innerText = "TIER 2: DOCUMENT PLANET";
+                desc.innerText = mockDatabase[id].title;
+                actionContainer.style.display = 'none';
+                if (expandedNodes[id]) collapseDoc(id); else expandDoc(id);
+            } 
+            else if (id.startsWith('MOON_')) {
+                const parts = id.split('_');
+                const docKey = parts[1] + '_' + parts[2];
+                const pageIdx = parseInt(parts[3], 10);
+                
+                title.innerText = `Page ${pageIdx + 1}`; meta.innerText = `TIER 3: MOON ARCHIVE [${docKey}]`;
+                desc.innerText = "Contains specialized structural analysis and active canvas stylus markings.";
+                actionContainer.style.display = 'block';
+                
+                currentSelection = { doc: docKey, page: pageIdx };
+            }
         }
 
-        window.onload = initNetwork;
+        function expandSubject(id) {
+            Object.entries(mockDatabase).forEach(([k, d]) => {
+                if (d.parent === id) {
+                    nodesDataset.add({ id: k, label: k, shape: 'dot', size: 16, font: { face: 'Inter', size: 11, bold: true, color: '#1c2331' }, color: { background: '#0b1a30', border: '#0b1a30' } });
+                    edgesDataset.add({ id: `e_${k}`, from: id, to: k, color: { color: '#0b1a30', opacity: 0.2 }, width: 2 });
+                }
+            });
+            expandedNodes[id] = true;
+        }
+
+        function collapseSubject(id) {
+            Object.entries(mockDatabase).forEach(([k, d]) => {
+                if (d.parent === id) {
+                    if (expandedNodes[k]) collapseDoc(k);
+                    if (nodesDataset.get(k)) nodesDataset.remove(k);
+                    if (edgesDataset.get(`e_${k}`)) edgesDataset.remove(`e_${k}`);
+                }
+            });
+            delete expandedNodes[id];
+        }
+
+        function expandDoc(id) {
+            mockDatabase[id].pages.forEach((p, i) => {
+                const mId = `MOON_${id}_${i}`;
+                nodesDataset.add({ id: mId, label: `P. ${i + 1}`, shape: 'dot', size: 10, font: { face: 'Fira Code', size: 10, color: '#b89047' }, color: { background: '#fdfcf7', border: '#b89047' }, borderWidth: 1.5 });
+                edgesDataset.add({ id: `e_${mId}`, from: id, to: mId, color: { color: '#b89047', opacity: 0.6 }, width: 1.5, dashed: true });
+            });
+            expandedNodes[id] = true;
+        }
+
+        function collapseDoc(id) {
+            mockDatabase[id].pages.forEach((p, i) => {
+                const mId = `MOON_${id}_${i}`;
+                if (nodesDataset.get(mId)) nodesDataset.remove(mId);
+                if (edgesDataset.get(`e_${mId}`)) edgesDataset.remove(`e_${mId}`);
+            });
+            delete expandedNodes[id];
+        }
+
+        function callUpActiveSelection() {
+            if (!currentSelection) return;
+            const { doc, page } = currentSelection;
+            
+            document.getElementById('meta-A').innerText = `${doc} // PAGE ${page + 1}`;
+            document.getElementById('content-A').innerHTML = mockDatabase[doc].pages[page];
+            
+            switchToView('desk');
+        }
+
+        function buildSidebarRegistry() {
+            const box = document.getElementById('sidebar-cards');
+            Object.entries(mockDatabase).forEach(([k, v]) => {
+                const el = document.createElement('div'); el.className = 'mnemonic-card';
+                el.innerHTML = `<strong style="color:var(--gold-brass)">${k}</strong><br>${v.title}`;
+                el.onclick = () => { currentSelection = { doc: k, page: 0 }; callUpActiveSelection(); };
+                box.appendChild(el);
+            });
+        }
+
+        function initCanvas(id) {
+            const canvas = document.getElementById(id); const ctx = canvas.getContext('2d');
+            canvas.width = 300; canvas.height = 150;
+            ctx.strokeStyle = '#b89047'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+            let active = false;
+            canvas.addEventListener('pointerdown', (e) => { active = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); });
+            canvas.addEventListener('pointermove', (e) => { if(active) { ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); } });
+            canvas.addEventListener('pointerup', () => active = false);
+        }
     </script>
 </body>
 </html>
