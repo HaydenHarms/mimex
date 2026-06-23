@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Memex — Associative Memory Desk</title>
+    <style>
+        :root {
+            --bg-desk: #1e1c18;
+            --panel-wood: #2c251e;
+            --screen-glass: #d8f3dc;
+            --screen-text: #1b4332;
+            --glow: #52b788;
+            --brass: #d4af37;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-desk);
+            font-family: 'Courier New', Courier, monospace;
+            color: #e0d6c8;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--brass);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+
+        /* The Desk Console Layout */
+        .memex-desk {
+            display: grid;
+            grid-template-columns: 3fr 1fr;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Dual Translucent Screens */
+        .screens-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            background: var(--panel-wood);
+            padding: 20px;
+            border-radius: 8px;
+            border: 4px solid #111;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        .screen {
+            background-color: var(--screen-glass);
+            color: var(--screen-text);
+            height: 600px;
+            padding: 25px;
+            border-radius: 4px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.3), 0 0 10px rgba(82, 183, 136, 0.2);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .screen-header {
+            border-bottom: 2px dashed var(--screen-text);
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .screen-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            line-height: 1.6;
+            font-size: 1.1rem;
+        }
+
+        /* Dot code matrix at bottom of microfilm */
+        .code-space {
+            border-top: 2px dashed var(--screen-text);
+            padding-top: 5px;
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            background: rgba(0,0,0,0.05);
+        }
+
+        /* Control Panel / Machinery */
+        .control-panel {
+            background: var(--panel-wood);
+            padding: 20px;
+            border-radius: 8px;
+            border: 4px solid #111;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .panel-section {
+            background: rgba(0,0,0,0.4);
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid var(--brass);
+        }
+
+        .panel-section h3 {
+            margin-top: 0;
+            color: var(--brass);
+            font-size: 0.95rem;
+            text-transform: uppercase;
+        }
+
+        /* Input Devices & Levers */
+        input, textarea, select, button {
+            background: #111;
+            border: 1px solid var(--brass);
+            color: #e0d6c8;
+            padding: 8px;
+            font-family: monospace;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        button {
+            cursor: pointer;
+            background: #3a322a;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        button:hover {
+            background: var(--brass);
+            color: #000;
+        }
+
+        .lever-group {
+            display: flex;
+            gap: 5px;
+        }
+
+        .lever-group button {
+            flex: 1;
+            font-size: 0.8rem;
+        }
+
+        .marginal-notes {
+            width: 100%;
+            height: 80px;
+            resize: none;
+            background: #fffdf0;
+            color: #333;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>The Memex Console</h1>
+
+    <div class="memex-desk">
+        
+        <div class="screens-container">
+            <div class="screen" id="screen-A">
+                <div class="screen-header">
+                    <span>POSITION A</span>
+                    <span id="meta-A">INDEX: empty</span>
+                </div>
+                <div class="screen-content" id="content-A">
+                    <em>Consult the record by tapping a code on the index console...</em>
+                </div>
+                <div class="marginalia">
+                    <label style="font-size:0.8rem; font-weight:bold;">Marginal Note (Stylus):</label>
+                    <textarea class="marginal-notes" id="notes-A" placeholder="Write annotations here..." oninput="saveNote('A')"></textarea>
+                </div>
+                <div class="code-space" id="dots-A">
+                    <span>[PHOTO-CELL TRAIL MARKER]</span>
+                    <span id="trail-indicator-A">UNLINKED</span>
+                </div>
+            </div>
+
+            <div class="screen" id="screen-B">
+                <div class="screen-header">
+                    <span>POSITION B</span>
+                    <span id="meta-B">INDEX: empty</span>
+                </div>
+                <div class="screen-content" id="content-B">
+                    <em>Adjacent viewing position for building associative trails.</em>
+                </div>
+                <div class="marginalia">
+                    <label style="font-size:0.8rem; font-weight:bold;">Marginal Note (Stylus):</label>
+                    <textarea class="marginal-notes" id="notes-B" placeholder="Write annotations here..." oninput="saveNote('B')"></textarea>
+                </div>
+                <div class="code-space" id="dots-B">
+                    <span>[PHOTO-CELL TRAIL MARKER]</span>
+                    <span id="trail-indicator-B">UNLINKED</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            
+            <div class="panel-section">
+                <h3>Keyboard & Mnemonic Codes</h3>
+                <label for="code-input">Enter Target Code:</label>
+                <input type="text" id="code-input" placeholder="e.g., BOW, ARROW, ELASTIC">
+                <div class="lever-group">
+                    <button onclick="callUpDocument('A')">Project to A</button>
+                    <button onclick="callUpDocument('B')">Project to B</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>Navigation Levers</h3>
+                <div style="margin-bottom: 5px; font-size:0.8rem;">Screen A Control:</div>
+                <div class="lever-group">
+                    <button onclick="deflectLever('A', -10)">-10x</button>
+                    <button onclick="deflectLever('A', -1)">-1x</button>
+                    <button onclick="deflectLever('A', 1)">+1x</button>
+                    <button onclick="deflectLever('A', 10)">+10x</button>
+                </div>
+                <div style="margin-top: 10px; margin-bottom: 5px; font-size:0.8rem;">Screen B Control:</div>
+                <div class="lever-group">
+                    <button onclick="deflectLever('B', -10)">-10x</button>
+                    <button onclick="deflectLever('B', -1)">-1x</button>
+                    <button onclick="deflectLever('B', 1)">+1x</button>
+                    <button onclick="deflectLever('B', 10)">+10x</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>Associative Indexer</h3>
+                <p style="font-size:0.75rem; margin:0 0 10px 0;">Permanently tie the contents of Screen A and Screen B together into an associative pathway.</p>
+                <input type="text" id="trail-name" placeholder="Name this trail (e.g., CRUSADES)">
+                <button onclick="tieItems()">Depress Link Lever</button>
+            </div>
+
+            <div class="panel-section">
+                <h3>Transparent Platen</h3>
+                <input type="text" id="platen-code" placeholder="Assign New Code">
+                <textarea id="platen-text" rows="3" placeholder="Place longhand notes or data here to dry-photograph into the repository..."></textarea>
+                <button onclick="dryPhotography()">Depress Platen Lever</button>
+            </div>
+
+            <div class="panel-section">
+                <h3>Review Trail Manifest</h3>
+                <button onclick="exportTrails()">Output Trail Record (JSON)</button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Core Microfilm Repository (Preset with Bush's Bow & Arrow Example)
+        const repository = {
+            "BOW": {
+                title: "Encyclopedia: Origins of the Bow",
+                pages: [
+                    "[Page 1] The mechanical utility of archery dates to the Upper Paleolithic. Early constructs prioritized simple stave design...",
+                    "[Page 2] In the Crusades, European armies encountered tactical resistance from highly mobile horse archers utilizing composite weapons...",
+                    "[Page 3] Comparative Analysis: English Longbow vs Turkish Short Bow. While the longbow possessed terrifying drawing force, the composite short bow displayed dynamic structural superiorities..."
+                ]
+            },
+            "ARROW": {
+                title: "Historical Accounts of the Crusades",
+                pages: [
+                    "[Page 1] Chapter IV: Skirmishes near Antioch. The speed of native arrow release confounded the heavily armored infantry units...",
+                    "[Page 2] Projectile velocity was calculated by contemporaries to be remarkably high, allowing armor penetration at close ranges..."
+                ]
+            },
+            "ELASTIC": {
+                title: "Textbook on Material Elasticity & Constants",
+                pages: [
+                    "[Page 1] Stress-strain relationships dictate that composite structures (sinew, wood, horn) store higher potential energy per unit mass than uniform staves...",
+                    "[Page 2] Hooke's Law and structural dynamics of reflex curves..."
+                ]
+            }
+        };
+
+        // State Machine for the Active Desk Session
+        let state = {
+            A: { code: null, page: 0 },
+            B: { code: null, page: 0 }
+        };
+
+        // Associative Trail Storage Map
+        let associativeTrails = {};
+        let marginalNotes = {}; // Key format: Code_Page
+
+        // Consult the record
+        function callUpDocument(screenId) {
+            const code = document.getElementById('code-input').value.toUpperCase().trim();
+            if (repository[code]) {
+                state[screenId].code = code;
+                state[screenId].page = 0;
+                renderScreen(screenId);
+            } else {
+                alert(`Code [${code}] not matched in microfilm index.`);
+            }
+        }
+
+        // Render contents onto the translucent glass screens
+        function renderScreen(screenId) {
+            const screenState = state[screenId];
+            if (!screenState.code) return;
+
+            const doc = repository[screenState.code];
+            const maxPages = doc.pages.length;
+            
+            // Adjust boundaries if page exceeds range
+            if (screenState.page < 0) screenState.page = 0;
+            if (screenState.page >= maxPages) screenState.page = maxPages - 1;
+
+            // Render Title & Text Content
+            document.getElementById(`meta-${screenId}`).innerText = `${doc.title} (Page ${screenState.page + 1}/${maxPages})`;
+            document.getElementById(`content-${screenId}`).innerHTML = `<p>${doc.pages[screenState.page]}</p>`;
+            
+            // Render Stylus Marginalia Notes
+            const noteKey = `${screenState.code}_${screenState.page}`;
+            document.getElementById(`notes-${screenId}`).value = marginalNotes[noteKey] || "";
+
+            // Check for Associative Trails / Photo-cell dots
+            updateTrailIndicator(screenId, noteKey);
+        }
+
+        // Deflect Levers for quick step-through navigation (1x, 10x, etc.)
+        function deflectLever(screenId, delta) {
+            if (!state[screenId].code) return;
+            state[screenId].page += delta;
+            renderScreen(screenId);
+        }
+
+        // Dry Photography System (Adding items via Platen)
+        function dryPhotography() {
+            const code = document.getElementById('platen-code').value.toUpperCase().trim();
+            const text = document.getElementById('platen-text').value;
+
+            if (!code || !text) {
+                alert("The platen is empty. Please supply both an index code and material content.");
+                return;
+            }
+
+            if (!repository[code]) {
+                repository[code] = { title: `User Record: [${code}]`, pages: [] };
+            }
+            
+            repository[code].pages.push(text);
+            alert(`Material instantly dry-photographed into storage area under Mnemonic index code: ${code}`);
+            
+            // Clear platen inputs
+            document.getElementById('platen-code').value = '';
+            document.getElementById('platen-text').value = '';
+        }
+
+        // Stylus Annotation Tracking
+        function saveNote(screenId) {
+            const screenState = state[screenId];
+            if (!screenState.code) return;
+            const noteKey = `${screenState.code}_${screenState.page}`;
+            marginalNotes[noteKey] = document.getElementById(`notes-${screenId}`).value;
+        }
+
+        // Associative Indexing Layer: The Crux of Memex
+        function tieItems() {
+            const trailName = document.getElementById('trail-name').value.toUpperCase().trim();
+            if (!trailName) {
+                alert("Please declare a distinct name for this Trail.");
+                return;
+            }
+
+            if (!state.A.code || !state.B.code) {
+                alert("Associative linkage requires items to be actively projected on adjacent viewing screens.");
+                return;
+            }
+
+            const keyA = `${state.A.code}_${state.A.page}`;
+            const keyB = `${state.B.code}_${state.B.page}`;
+
+            // Create relational double linkage (Photocell Dot Pattern Mimicry)
+            associativeTrails[keyA] = { trail: trailName, linksTo: keyB };
+            associativeTrails[keyB] = { trail: trailName, linksTo: keyA };
+
+            updateTrailIndicator('A', keyA);
+            updateTrailIndicator('B', keyB);
+
+            alert(`Items permanently bound together into trail: [${trailName}]. Photo-cell indicators embedded.`);
+        }
+
+        function updateTrailIndicator(screenId, key) {
+            const indicator = document.getElementById(`trail-indicator-${screenId}`);
+            if (associativeTrails[key]) {
+                const linkData = associativeTrails[key];
+                indicator.innerHTML = `<span style="color:var(--screen-text); font-weight:bold;">TRAIL: ${linkData.trail} ➔ Jump to linked page</span>`;
+                indicator.style.cursor = "pointer";
+                indicator.onclick = function() { FollowTrail(screenId, linkData.linksTo); };
+            } else {
+                indicator.innerText = "UNLINKED";
+                indicator.style.cursor = "default";
+                indicator.onclick = null;
+            }
+        }
+
+        function FollowTrail(currentScreenId, targetKey) {
+            const [targetCode, targetPageStr] = targetKey.split('_');
+            const targetPage = parseInt(targetPageStr, 10);
+            
+            // Shift target material onto the alternate screen to keep the active pathway contextualized
+            const alternativeScreen = (currentScreenId === 'A') ? 'B' : 'A';
+            
+            state[alternativeScreen].code = targetCode;
+            state[alternativeScreen].page = targetPage;
+            renderScreen(alternativeScreen);
+        }
+
+        // Export data payload
+        function exportTrails() {
+            const payload = {
+                trails: associativeTrails,
+                annotations: marginalNotes,
+                customRepositoryExtensions: repository
+            };
+            
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", "memex_trail_manifest.json");
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+        }
+    </script>
+</body>
+</html>
