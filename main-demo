@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Memex — Associative Dashboard</title>
+    <title>Memex — Three-Tier Cosmic Node Engine</title>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         :root {
-            --bg-desk: #1e1c18;
-            --panel-wood: #2c251e;
-            --screen-glass: rgba(216, 243, 220, 0.15);
-            --glow: #52b788;
+            --bg-desk: #141210;
+            --panel-wood: #261f18;
+            --glow-green: #52b788;
             --brass: #d4af37;
+            --cyan: #00b4d8;
             --text-light: #e0d6c8;
         }
 
@@ -28,271 +28,206 @@
         }
 
         header {
-            background: #111;
+            background: #0b0a09;
             padding: 15px 20px;
-            border-bottom: 3px solid var(--brass);
+            border-bottom: 2px solid var(--brass);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
 
-        h1 {
-            margin: 0;
-            font-size: 1.4rem;
-            color: var(--brass);
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
+        h1 { margin: 0; font-size: 1.2rem; color: var(--brass); letter-spacing: 2px; }
 
-        .status-badge {
-            font-size: 0.8rem;
-            background: rgba(82, 183, 136, 0.2);
-            color: var(--glow);
-            padding: 4px 8px;
-            border: 1px solid var(--glow);
-            border-radius: 4px;
-        }
+        .layout { display: flex; flex-grow: 1; height: calc(100vh - 55px); }
+        .canvas-area { flex-grow: 1; position: relative; background: radial-gradient(circle, #1c1a16 0%, #080706 100%); }
+        #network-graph { width: 100%; height: 100%; }
 
-        /* Dashboard Layout */
-        .dashboard-container {
-            display: flex;
-            flex-grow: 1;
-            height: calc(100vh - 60px);
-        }
-
-        /* Sidebar for Trail Indexing */
-        .sidebar {
-            width: 320px;
-            background: var(--panel-wood);
-            border-right: 3px solid #111;
-            padding: 20px;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .sidebar-section {
-            background: rgba(0,0,0,0.3);
-            padding: 15px;
-            border-radius: 4px;
-            border-left: 3px solid var(--brass);
-        }
-
-        h3 {
-            margin-top: 0;
-            margin-bottom: 10px;
-            color: var(--brass);
-            font-size: 0.9rem;
-            text-transform: uppercase;
-        }
-
-        .trail-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .trail-item {
-            padding: 8px;
-            margin-bottom: 5px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 4px;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .trail-item:hover {
-            background: rgba(212, 175, 55, 0.2);
-            color: #fff;
-        }
-
-        /* The Map Canvas Viewport */
-        .map-viewport {
-            flex-grow: 1;
-            position: relative;
-            background: radial-gradient(circle, #25221c 0%, #131210 100%);
-        }
-
-        #network-graph {
-            width: 100%;
-            height: 100%;
-        }
-
-        /* Dynamic Inspection Overlay */
-        .inspection-overlay {
+        .hud-panel {
             position: absolute;
-            bottom: 20px;
+            top: 20px;
             left: 20px;
-            right: 20px;
-            background: rgba(27, 25, 22, 0.95);
-            border: 2px solid var(--brass);
+            background: rgba(11, 10, 9, 0.95);
+            border: 1px solid var(--brass);
             padding: 15px;
-            border-radius: 6px;
-            display: none;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
-            animation: slideUp 0.3s ease-out;
+            border-radius: 4px;
+            max-width: 320px;
+            pointer-events: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
         }
 
-        @keyframes slideUp {
-            from { transform: translateY(50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        .overlay-header {
-            display: flex;
-            justify-content: space-between;
-            color: var(--brass);
-            font-weight: bold;
-            border-bottom: 1px dashed rgba(212, 175, 55, 0.3);
-            padding-bottom: 5px;
-            margin-bottom: 10px;
-        }
-
-        .action-btn {
-            background: var(--brass);
-            color: #000;
-            border: none;
-            padding: 6px 12px;
-            font-family: monospace;
-            font-weight: bold;
-            cursor: pointer;
-            text-transform: uppercase;
-        }
-
-        .action-btn:hover {
-            background: #fff;
-        }
+        .hud-title { color: var(--brass); font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
+        .hud-tier { font-size: 0.75rem; color: var(--cyan); margin-bottom: 8px; font-weight: bold; }
+        .hud-body { font-size: 0.85rem; color: #b5ad9e; line-height: 1.4; }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>Memex // Topological Mind Map</h1>
-        <div class="status-badge">● CLOUD ENGINE ONLINE</div>
+        <h1>MEMEX // MULTI-TIER KINETIC REPOSITORY</h1>
+        <div style="font-size: 0.8rem; color: var(--glow-green);">HIERARCHICAL PLANET STRUCTURE ONLINE</div>
     </header>
 
-    <div class="dashboard-container">
-        <div class="sidebar">
-            <div class="sidebar-section">
-                <h3>System Directives</h3>
-                <p style="font-size: 0.8rem; line-height: 1.4; margin: 0;">
-                    Pinch/Scroll to zoom out to macro-view. Drag nodes to reshape associative spatial configurations. Tapping a node hooks into the document preview engine.
-                </p>
-            </div>
-            
-            <div class="sidebar-section">
-                <h3>Active Master Trails</h3>
-                <ul class="trail-list">
-                    <li class="trail-item" onclick="focusOnTrail('CRUSADES')">➔ CRUSADES (5 nodes)</li>
-                    <li class="trail-item" onclick="focusOnTrail('ELASTICITY')">➔ ELASTICITY (3 nodes)</li>
-                    <li class="trail-item" onclick="focusOnTrail('ANATOMY')">➔ HISTOLOGY/ANATOMY (2 nodes)</li>
-                </ul>
-            </div>
-        </div>
-
-        <div class="map-viewport">
+    <div class="layout">
+        <div class="canvas-area">
             <div id="network-graph"></div>
-
-            <div class="inspection-overlay" id="inspector">
-                <div class="overlay-header">
-                    <span id="inspect-title">DOCUMENT CODE: NONE</span>
-                    <span id="inspect-mnemonic" style="color: var(--glow);">CODE</span>
-                </div>
-                <p id="inspect-desc" style="margin: 0 0 12px 0; font-size: 0.9rem; color: #b5ad9e;"></p>
-                <div style="text-align: right;">
-                    <button class="action-btn" onclick="loadIntoDesk()">Project to Translucent Screens ➔</button>
-                </div>
+            
+            <!-- Contextual HUD -->
+            <div class="hud-panel">
+                <div class="hud-title" id="hud-name">Console Initialized</div>
+                <div class="hud-tier" id="hud-tier">SYSTEM STANDBY</div>
+                <div class="hud-body" id="hud-desc">Tap a golden Subject Sun to reveal Document Planets. Tap a Document Title Planet to branch out its Page Flag Moons.</div>
             </div>
         </div>
     </div>
 
     <script>
-        let network = null;
-        let selectedNodeId = null;
+        let nodesDataset, edgesDataset, network;
+        
+        // Tier 1: Overarching Subject Suns
+        const subjects = {
+            'SUBJ_BALLISTICS': { id: 'SUBJ_BALLISTICS', label: 'BALLISTICS & ARCHERY', type: 'sun', desc: 'Master study tracking projectile systems, combat implementation, and mechanical weapon evolution.' }
+        };
 
-        // Mock localized dataset acting as the blueprint model
-        const mockNodes = [
-            { id: 1, label: 'BOW', title: 'Mnemonic: BOW', group: 'history', desc: 'Encyclopedia entry covering the historical mechanics of early ballistic staves and the composite short bow.' },
-            { id: 2, label: 'ARROW', title: 'Mnemonic: ARROW', group: 'history', desc: 'Crusade military journals detailing projectile tactical parameters and native arrow speed release formulas.' },
-            { id: 3, label: 'ELASTIC', title: 'Mnemonic: ELASTIC', group: 'science', desc: 'Textbook manuscript detailing Stress-Strain relations, Hooke\'s Law, and structural dynamics of reflex curves.' },
-            { id: 4, label: 'CRUSADES', title: 'Mnemonic: CRUSADES', group: 'history', desc: 'Vast chronological historical record tracking tactical engagement metrics between European and Middle Eastern units.' },
-            { id: 5, label: 'ANATOMY', title: 'Mnemonic: ANATOMY', group: 'medical', desc: 'Anatomical references detailing muscular dynamics and kinetic force projection properties of the human shoulder wrap.' }
-        ];
+        // Tier 2: Document Planets (Orbiting the Suns)
+        const documents = {
+            'DOC_BOW': { id: 'DOC_BOW', parent: 'SUBJ_BALLISTICS', label: 'Book: Origins of the Bow', type: 'planet', desc: 'Comprehensive encyclopedia asset logging early ballistic staves and construction types.' },
+            'DOC_ARROW': { id: 'DOC_ARROW', parent: 'SUBJ_BALLISTICS', label: 'Journal: Crusade Tactics', type: 'planet', desc: 'Military field dispatches tracking tactical release speeds and missile penetration parameters.' }
+        };
 
-        const mockEdges = [
-            { from: 1, to: 2, label: 'CRUSADES TRAIL', color: { color: '#d4af37' }, width: 2 },
-            { from: 1, to: 4, label: 'CRUSADES TRAIL', color: { color: '#d4af37' }, width: 2 },
-            { from: 2, to: 4, label: 'CRUSADES TRAIL', color: { color: '#d4af37' }, width: 2 },
-            { from: 1, to: 3, label: 'ELASTICITY TRAIL', color: { color: '#52b788' }, width: 2 },
-            { from: 5, to: 1, label: 'BIOMECHANICS', color: { color: '#3a86ff' }, width: 1 }
-        ];
+        // Tier 3: Page Flag Moons (Branching off explicit Document Title Planets)
+        const pageFlags = {
+            'DOC_BOW': [
+                { id: 'FLAG_BOW_P2', label: 'P.2: Horse Archers', desc: 'Annotated coordinate tracking operational movement mechanics of eastern units.' },
+                { id: 'FLAG_BOW_P3', label: 'P.3: Turkish Design', desc: 'Stylus profile sketch mapping out the reflex curve elasticity parameters.' }
+            ],
+            'DOC_ARROW': [
+                { id: 'FLAG_ARROW_P1', label: 'P.1: Penetration Formula', desc: 'Mathematical index tracking dynamic velocity metrics against heavy plate armor.' }
+            ]
+        };
 
-        function initializeMap() {
-            const container = document.getElementById('network-graph');
-            
-            const data = {
-                nodes: new vis.DataSet(mockNodes.map(n => ({
-                    id: n.id,
-                    label: n.label,
+        let expandedSuns = {};
+        let expandedPlanets = {};
+
+        function initNetwork() {
+            nodesDataset = new vis.DataSet();
+            edgesDataset = new vis.DataSet();
+
+            // Render Tier 1: Suns
+            Object.values(subjects).forEach(sun => {
+                nodesDataset.add({
+                    id: sun.id,
+                    label: sun.label,
                     shape: 'dot',
-                    size: 20,
-                    font: { face: 'Courier New', color: '#e0d6c8', size: 14 },
-                    color: {
-                        background: '#2c251e',
-                        border: '#d4af37',
-                        highlight: { background: '#52b788', border: '#fff' }
-                    }
-                }))),
-                edges: new vis.DataSet(mockEdges)
-            };
+                    size: 32,
+                    font: { face: 'Courier New', color: '#fff', size: 15, bold: true },
+                    color: { background: '#1c1712', border: '#d4af37', highlight: { background: '#d4af37', border: '#fff' } },
+                    borderWidth: 3
+                });
+            });
 
+            const container = document.getElementById('network-graph');
+            const data = { nodes: nodesDataset, edges: edgesDataset };
             const options = {
                 physics: {
-                    barnesHut: { gravitationalConstant: -3000, centralGravity: 0.3, springLength: 120 }
+                    barnesHut: { gravitationalConstant: -2000, centralGravity: 0.1, springLength: 90, springConstant: 0.05 }
                 },
-                interaction: { 
-                    hover: true,
-                    zoomView: true,
-                    dragView: true
-                }
+                interaction: { zoomView: true, dragView: true }
             };
 
             network = new vis.Network(container, data, options);
 
-            // Node Click Event
-            network.on("click", function (params) {
+            network.on("click", function(params) {
                 if (params.nodes.length > 0) {
-                    const nodeId = params.nodes[0];
-                    showInspector(nodeId);
-                } else {
-                    document.getElementById('inspector').style.display = 'none';
+                    handleNodeTap(params.nodes[0]);
                 }
             });
         }
 
-        function showInspector(nodeId) {
-            selectedNodeId = nodeId;
-            const nodeData = mockNodes.find(n => n.id === nodeId);
-            
-            document.getElementById('inspect-title').innerText = nodeData.title;
-            document.getElementById('inspect-mnemonic').innerText = `GROUP: ${nodeData.group.toUpperCase()}`;
-            document.getElementById('inspect-desc').innerText = nodeData.desc;
-            document.getElementById('inspector').style.display = 'block';
+        function handleNodeTap(id) {
+            // Click Tier 1: Subject Sun
+            if (subjects[id]) {
+                const sun = subjects[id];
+                updateHUD(sun.label, "TIER 1: SUBJECT GROUP", sun.desc);
+                if (expandedSuns[id]) collapseSun(id); else expandSun(id);
+            } 
+            // Click Tier 2: Document Planet
+            else if (documents[id]) {
+                const doc = documents[id];
+                updateHUD(doc.label, "TIER 2: DOCUMENT SUN", doc.desc);
+                if (expandedPlanets[id]) collapsePlanet(id); else expandPlanet(id);
+            } 
+            // Click Tier 3: Page Flag Moon
+            else {
+                let flag = null;
+                Object.values(pageFlags).flat().forEach(f => { if(f.id === id) flag = f; });
+                if (flag) {
+                    updateHUD(`FLAG: ${flag.label}`, "TIER 3: PAGE ANCHOR MOON", `${flag.desc}\n\n[Action: Command desktop console or swipe to slide this page image into active view]`);
+                }
+            }
         }
 
-        function focusOnTrail(trailName) {
-            alert(`Filtering map overlay machinery to isolate pathway: [${trailName}]. Custom viewport focus zoom triggered.`);
+        function updateHUD(name, tier, desc) {
+            document.getElementById('hud-name').innerText = name;
+            document.getElementById('hud-tier').innerText = tier;
+            document.getElementById('hud-desc').innerText = desc;
         }
 
-        function loadIntoDesk() {
-            const nodeData = mockNodes.find(n => n.id === selectedNodeId);
-            alert(`System Command: Routing document index context [${nodeData.label}] cleanly into Workspace Viewports...`);
+        function expandSun(sunId) {
+            Object.values(documents).forEach(doc => {
+                if (doc.parent === sunId) {
+                    nodesDataset.add({
+                        id: doc.id,
+                        label: doc.label,
+                        shape: 'dot',
+                        size: 20,
+                        font: { face: 'Courier New', color: 'var(--text-light)', size: 12, bold: true },
+                        color: { background: '#0b0a09', border: 'var(--cyan)', highlight: { background: 'var(--cyan)', border: '#fff' } },
+                        borderWidth: 2
+                    });
+                    edgesDataset.add({ id: `edge_${doc.id}`, from: sunId, to: doc.id, color: { color: 'var(--cyan)', opacity: 0.5 }, width: 2 });
+                }
+            });
+            expandedSuns[sunId] = true;
         }
 
-        window.onload = initializeMap;
+        function collapseSun(sunId) {
+            Object.values(documents).forEach(doc => {
+                if (doc.parent === sunId) {
+                    if (expandedPlanets[doc.id]) collapsePlanet(doc.id);
+                    if (nodesDataset.get(doc.id)) nodesDataset.remove(doc.id);
+                    if (edgesDataset.get(`edge_${doc.id}`)) edgesDataset.remove(`edge_${doc.id}`);
+                }
+            });
+            delete expandedSuns[sunId];
+        }
+
+        function expandPlanet(planetId) {
+            const flags = pageFlags[planetId] || [];
+            flags.forEach(flag => {
+                nodesDataset.add({
+                    id: flag.id,
+                    label: flag.label,
+                    shape: 'dot',
+                    size: 11,
+                    font: { face: 'Courier New', color: '#b5ad9e', size: 11 },
+                    color: { background: '#141210', border: 'var(--glow-green)', highlight: { background: 'var(--glow-green)', border: '#fff' } },
+                    borderWidth: 1.5
+                });
+                edgesDataset.add({ id: `edge_${flag.id}`, from: planetId, to: flag.id, color: { color: 'var(--glow-green)', opacity: 0.6 }, width: 1.5 });
+            });
+            expandedPlanets[planetId] = true;
+        }
+
+        function collapsePlanet(planetId) {
+            const flags = pageFlags[planetId] || [];
+            flags.forEach(flag => {
+                if (nodesDataset.get(flag.id)) nodesDataset.remove(flag.id);
+                if (edgesDataset.get(`edge_${flag.id}`)) edgesDataset.remove(`edge_${flag.id}`);
+            });
+            delete expandedPlanets[planetId];
+        }
+
+        window.onload = initNetwork;
     </script>
 </body>
 </html>
