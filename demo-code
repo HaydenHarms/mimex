@@ -561,8 +561,8 @@
                     <div class="platen-subtext">Drop PDF/image attachments or click to import files directly into storage</div>
                     <input type="file" id="hidden-file-picker" style="display: none;" accept="image/*,application/pdf" onchange="handlePlatenFileSelection(this.files)">
                 </div>
-                <button class="action-btn" style="margin-top: 5px;" onclick="insertBlankPageMechanicalLever()">+ Insert New Page</button>
-            </div>
+<button class="action-btn" style="margin-top: 5px;" onclick="insertBlankPageMechanicalLever()">+ Insert New Page</button>
+                <button class="action-btn" style="margin-top: 5px; background: rgba(184,144,71,0.1); border-color: var(--gold-brass);" onclick="linkActiveDeskViewportsMechanicalLever()">🔗 Link Active Viewports (A ↔ B)</button>            </div>
             <div class="sidebar-bottom" id="mini-map-container">
                 <div class="section-label" style="position: absolute; top: 15px; left: 20px; z-index: 5; border: none;">Neighborhood Mini-Map</div>
                 <div id="mini-neighborhood-graph"></div>
@@ -701,6 +701,7 @@
 
     <script>
         // Core Application State Encapsulation Object (Namespace)
+/* === START OF LANDMARK: STATE REGISTER ARCHITECTURE === */
         const MemexState = {
             db: {
                 "DOC_BOW": { title: "Book: Origins of the Bow", parent: "SUBJ_BALLISTICS", pages: [
@@ -715,6 +716,7 @@
                 ]}
             },
             subjects: { "SUBJ_BALLISTICS": "BALLISTICS & ARCHERY", "SUBJ_PHYSICS": "MATERIALS & MECHANICS" },
+            links: [], // NEW ARCHIVAL REGISTRY SLOT: Holds cross-link arrays
             network: null, miniNetwork: null, nodesDataset: null, edgesDataset: null,
             expandedNodes: {}, rightClickedContextNode: null, rightClickedSidebarTarget: null, 
             currentMiniMapFocusDoc: null, selectedMiniMapDocId: null,
@@ -723,9 +725,17 @@
                 B: { docId: null, pageIdx: 0, tool: 'none', size: 'md', color: '#9e2a2b', inputMode: 'text' }
             }
         };
-
+/* === END OF LANDMARK: STATE REGISTER ARCHITECTURE === */
 /* === START OF LANDMARK: INITIALIZATION RUNTIME ENGINE === */
         window.onload = function() {
+            // 1. PERSISTENCE LAYER: Immediately look into browser memory and recover historical saves if they exist
+            if (localStorage.getItem('memex_saved_db')) {
+                MemexState.db = JSON.parse(localStorage.getItem('memex_saved_db'));
+            }
+            if (localStorage.getItem('memex_saved_subjects')) {
+                MemexState.subjects = JSON.parse(localStorage.getItem('memex_saved_subjects'));
+            }
+
             if (typeof vis === 'undefined') {
                 document.getElementById('engine-status-tag').innerText = "CORE OFFLINE";
                 document.getElementById('engine-status-tag').style.color = "var(--crimson-alert)";
@@ -767,6 +777,12 @@
                     });
                 }
             });
+
+            // 2. BACKGROUND LOOP LAYER: Quietly write database dumps into local storage every 2 seconds
+            setInterval(() => {
+                localStorage.setItem('memex_saved_db', JSON.stringify(MemexState.db));
+                localStorage.setItem('memex_saved_subjects', JSON.stringify(MemexState.subjects));
+            }, 2000);
             
             document.addEventListener('click', () => { 
                 const rm = document.getElementById('routing-menu'); if (rm) rm.style.display = 'none'; 
@@ -820,15 +836,30 @@
             else { switchToView('map'); }
         }
 
+/* === START OF LANDMARK: PERSISTENT TOPOLOGY ENGINE === */
         function initTopologyMap() {
             MemexState.nodesDataset = new vis.DataSet(); MemexState.edgesDataset = new vis.DataSet();
             
+            // Read historically saved coordinates from local storage
+            const savedPositions = JSON.parse(localStorage.getItem('memex_saved_positions') || '{}');
+            
             Object.entries(MemexState.subjects).forEach(([id, name]) => {
-                const posX = id === "SUBJ_BALLISTICS" ? -180 : 180;
+                // If a node position was saved, use it. Otherwise, space them out incrementally.
+                const hasSaved = savedPositions[id];
+                const defaultX = id === "SUBJ_BALLISTICS" ? -180 : (id === "SUBJ_PHYSICS" ? 180 : Math.random() * 200 - 100);
+                const defaultY = id === "SUBJ_BALLISTICS" ? 0 : (id === "SUBJ_PHYSICS" ? 0 : Math.random() * 200 - 100);
+                
                 MemexState.nodesDataset.add({ 
-                    id: id, label: name, x: posX, y: 0, fixed: { x: true, y: true }, shape: 'dot', size: 30, 
+                    id: id, 
+                    label: name, 
+                    x: hasSaved ? hasSaved.x : defaultX, 
+                    y: hasSaved ? hasSaved.y : defaultY, 
+                    fixed: false, // UNFREEZE FOLDERS: Allow dragging to custom configurations
+                    shape: 'dot', 
+                    size: 30, 
                     font: { face: 'Merriweather', size: 14, bold: true, color: '#0b1a30' }, 
-                    color: { background: '#0b1a30', border: '#b89047' }, borderWidth: 2 
+                    color: { background: '#0b1a30', border: '#b89047' }, 
+                    borderWidth: 2 
                 });
             });
 
@@ -838,6 +869,19 @@
             MemexState.network = new vis.Network(container, { nodes: MemexState.nodesDataset, edges: MemexState.edgesDataset }, { physics: { stabilization: false, barnesHut: { gravitationalConstant: -1200, centralGravity: 0.1, springLength: 90 } } });
             MemexState.network.on("click", (p) => { if(p.nodes.length > 0) handleLeftClickNode(p.nodes[0]); });
             
+            // AUTOMATIC COORD SAVE METER: Record new custom node positions whenever dragging stops
+            MemexState.network.on("dragEnd", () => {
+                const currentPositions = MemexState.network.getPositions();
+                const savedPositions = JSON.parse(localStorage.getItem('memex_saved_positions') || '{}');
+                Object.keys(currentPositions).forEach(nodeId => {
+                    // Only save coordinates for the primary Topic Folders
+                    if (MemexState.subjects[nodeId]) {
+                        savedPositions[nodeId] = currentPositions[nodeId];
+                    }
+                });
+                localStorage.setItem('memex_saved_positions', JSON.stringify(savedPositions));
+            });
+            
             container.addEventListener('contextmenu', function(e) {
                 e.preventDefault();
                 const rect = container.getBoundingClientRect();
@@ -845,7 +889,7 @@
                 if (nodeId && (nodeId.startsWith('MOON_') || MemexState.db[nodeId])) { showCustomRoutingMenu(e.pageX, e.pageY, nodeId); }
             }, true);
         }
-
+/* === END OF LANDMARK: PERSISTENT TOPOLOGY ENGINE === */
         function handleLeftClickNode(id) {
             if (MemexState.subjects[id]) { if (MemexState.expandedNodes[id]) collapseSubject(id); else expandSubject(id); } 
             else if (MemexState.db[id]) { if (MemexState.expandedNodes[id]) collapseDoc(id); else expandDoc(id); }
