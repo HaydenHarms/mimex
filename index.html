@@ -556,11 +556,12 @@
                 <div class="file-tree" id="desk-file-explorer"></div>
                 
                 <div class="section-label">File Operations</div>
-                <div class="platen-dropzone" id="platen-vault" onclick="document.getElementById('hidden-file-picker').click()">
-                    <div class="platen-title">📸 File Uploader</div>
-                    <div class="platen-subtext">Drop PDF/image attachments or click to import files directly into storage</div>
+                <div class="platen-dropzone" id="platen-vault" onclick="initiatePlatenIngestionPipeline()">
+                    <div class="platen-title">📸 File / URL Ingestor</div>
+                    <div class="platen-subtext">Click to stream a webpage URL or import local files directly into storage</div>
                     <input type="file" id="hidden-file-picker" style="display: none;" accept="image/*,application/pdf" onchange="handlePlatenFileSelection(this.files)">
                 </div>
+
 <button class="action-btn" style="margin-top: 5px;" onclick="insertBlankPageMechanicalLever()">+ Insert New Page</button>
                 <button class="action-btn" style="margin-top: 5px; background: rgba(184,144,71,0.1); border-color: var(--gold-brass);" onclick="linkActiveDeskViewportsMechanicalLever()">🔗 Link Active Viewports (A ↔ B)</button>            </div>
             <div class="sidebar-bottom" id="mini-map-container">
@@ -686,23 +687,39 @@
 
     <div class="custom-context-menu" id="routing-menu">
         <div class="menu-header" id="menu-node-label">VIEWPORT COMPILATION DATA</div>
-        <div class="menu-item" onclick="castTargetViewport('A')">➔ Project to Viewport Alpha</div>
-        <div class="menu-item" onclick="castTargetViewport('B')">➔ Project to Viewport Beta</div>
+        <div class="menu-item" id="ctx-map-proj-alpha" onclick="castTargetViewport('A')">➔ Project to Viewport Alpha</div>
+        <div class="menu-item" id="ctx-map-proj-beta" onclick="castTargetViewport('B')">➔ Project to Viewport Beta</div>
+        <div class="menu-item" id="ctx-map-ingest" onclick="mapMechanicalIngestDocument()">📥 Ingest Document / URL</div>
     </div>
 
-<div class="custom-context-menu" id="sidebar-routing-menu">
+    <div class="custom-context-menu" id="sidebar-routing-menu">
         <div class="menu-header" id="sidebar-menu-header">FILE SYSTEM EXPLORER</div>
         <div class="menu-item" id="ctx-create-topic" onclick="sidebarMechanicalCreateTopic()">📁 Create New Topic Folder</div>
         <div class="menu-item" id="ctx-create-article" onclick="sidebarMechanicalCreateArticle()">📄 Create New Article File</div>
         <div class="menu-item" id="ctx-create-page" onclick="sidebarMechanicalCreatePage()">📝 Append New Page Index</div>
+        <div class="menu-item" id="ctx-ingest" onclick="sidebarMechanicalIngestDocument()">📥 Ingest Document / URL</div>
         <div class="menu-item" id="ctx-rename" onclick="sidebarMechanicalRename()">✏️ Rename Item</div>
         <div class="menu-item" id="ctx-delete" onclick="sidebarMechanicalDelete()">❌ Delete Item</div>
         <div class="menu-item" id="ctx-proj-alpha" onclick="sidebarCastTargetViewport('A')">➔ Project to Viewport Alpha</div>
         <div class="menu-item" id="ctx-proj-beta" onclick="sidebarCastTargetViewport('B')">➔ Project to Viewport Beta</div>
     </div>
 
-    <script>
-        // Core Application State Encapsulation Object (Namespace)
+    <div id="memex-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(11, 26, 48, 0.4); backdrop-filter: blur(2px); z-index: 2000; justify-content: center; align-items: center;">
+        <div style="background: var(--bg-main); border: 2px solid var(--gold-brass); box-shadow: 0 12px 40px rgba(11, 26, 48, 0.25); border-radius: 4px; width: 440px; max-width: 90%; overflow: hidden; font-family: var(--font-body);">
+            <div id="memex-modal-header" style="background: var(--navy-solid); color: #ffffff; padding: 10px 15px; font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.5px; border-bottom: 1px solid var(--gold-brass);">MEMEX // SYSTEM DIALOGUE</div>
+            <div id="memex-modal-body" style="padding: 20px; color: var(--text-main); font-size: 0.85rem; line-height: 1.5;"></div>
+            <div id="memex-modal-input-container" style="padding: 0 20px 15px 20px; display: none;">
+                <input type="text" id="memex-modal-input" style="width: 100%; box-sizing: border-box; background: var(--bg-panel); border: 1px solid var(--border-crisp); color: var(--text-main); font-family: var(--font-mono); font-size: 0.8rem; padding: 8px 10px; outline: none; border-radius: 3px;" />
+            </div>
+            <div style="background: rgba(0,0,0,0.02); padding: 12px 15px; border-top: 1px solid var(--border-crisp); display: flex; justify-content: flex-end; gap: 10px;">
+                <button id="memex-modal-cancel" class="wipe-btn" style="padding: 5px 12px; display: none;">CANCEL</button>
+                <button id="memex-modal-confirm" class="view-btn" style="padding: 5px 12px;">CONFIRM</button>
+            </div>
+        </div>
+    </div>
+
+    <script>       
+// Core Application State Encapsulation Object (Namespace)
 /* === START OF LANDMARK: STATE REGISTER ARCHITECTURE === */
         const MemexState = {
             db: {
@@ -737,6 +754,10 @@
             if (localStorage.getItem('memex_saved_subjects')) {
                 MemexState.subjects = JSON.parse(localStorage.getItem('memex_saved_subjects'));
             }
+            /* === LINK PERSISTENCE PATCH: RECOVER SAVED REGISTRIES === */
+            if (localStorage.getItem('memex_saved_links')) {
+                MemexState.links = JSON.parse(localStorage.getItem('memex_saved_links'));
+            }
 
             if (typeof vis === 'undefined') {
                 document.getElementById('engine-status-tag').innerText = "CORE OFFLINE";
@@ -755,7 +776,15 @@
                 return;
             }
 
-            try { initTopologyMap(); } catch (mapErr) { console.error("Knowledge Map initialization failed:", mapErr); }
+            try { 
+                initTopologyMap(); 
+                /* === LINK PERSISTENCE PATCH: INITIAL RENDER COMMAND === */
+                if (typeof renderGlobalLinks === 'function') {
+                    renderGlobalLinks();
+                }
+            } catch (mapErr) { 
+                console.error("Knowledge Map initialization failed:", mapErr); 
+            }
 
             renderVSCodeFileTree();
             
@@ -784,6 +813,8 @@
             setInterval(() => {
                 localStorage.setItem('memex_saved_db', JSON.stringify(MemexState.db));
                 localStorage.setItem('memex_saved_subjects', JSON.stringify(MemexState.subjects));
+                /* === LINK PERSISTENCE PATCH: AUTO-SAVE LINK ENTRIES === */
+                localStorage.setItem('memex_saved_links', JSON.stringify(MemexState.links));
             }, 2000);
             
             document.addEventListener('click', () => { 
@@ -884,22 +915,78 @@
                 localStorage.setItem('memex_saved_positions', JSON.stringify(savedPositions));
             });
             
-            container.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-                const rect = container.getBoundingClientRect();
-                const nodeId = MemexState.network.getNodeAt({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-                if (nodeId && (nodeId.startsWith('MOON_') || MemexState.db[nodeId])) { showCustomRoutingMenu(e.pageX, e.pageY, nodeId); }
-            }, true);
+            // GRAPH INTERFACE RIGHT-CLICK CAPTURE: Intercept node right-clicks to project the routing menu
+            MemexState.network.on("oncontext", function (params) {
+                params.event.preventDefault(); // Stop standard browser window menu from popping up
+                
+                // Track if a node circle was directly underneath the mouse pointer during right-click
+                const nodeId = MemexState.network.getNodeAt(params.pointer.DOM);
+                if (nodeId) {
+                    showCustomRoutingMenu(params.event.pageX, params.event.pageY, nodeId);
+                }
+            });
+            
+            function showCustomRoutingMenu(x, y, nodeId) {
+            MemexState.rightClickedContextNode = nodeId;
+            const menu = document.getElementById('routing-menu');
+            if (!menu) return;
+            
+            // Check if user targeted a Topic Folder or a micro-page element sheet
+            const isSubjectId = !!MemexState.subjects[nodeId];
+            document.getElementById('menu-node-label').innerText = isSubjectId ? `FOLDER: ${nodeId}` : `NODE: ${nodeId}`;
+            
+            // Morph layout visibility structures in real-time depending on selected asset parameter
+            document.getElementById('ctx-map-proj-alpha').style.display = isSubjectId ? 'none' : 'block';
+            document.getElementById('ctx-map-proj-beta').style.display = isSubjectId ? 'none' : 'block';
+            document.getElementById('ctx-map-ingest').style.display = isSubjectId ? 'block' : 'none';
+            
+            /* === CRITICAL FIX START: CLOSE TOPOLOGY MAP & ADD INTERACTION INTERFACES === */
+            menu.style.left = `${x}px`; menu.style.top = `${y}px`; menu.style.display = 'block';
         }
-/* === END OF LANDMARK: PERSISTENT TOPOLOGY ENGINE === */
-        function handleLeftClickNode(id) {
-            if (MemexState.subjects[id]) { if (MemexState.expandedNodes[id]) collapseSubject(id); else expandSubject(id); } 
-            else if (MemexState.db[id]) { if (MemexState.expandedNodes[id]) collapseDoc(id); else expandDoc(id); }
+    } 
+
+    // Core Navigation & Interactive Graph Selector Handler
+    function handleLeftClickNode(id) {
+        if (!id) return;
+        
+        // Router A: User clicked a Topic Folder Module
+        if (MemexState.subjects[id]) {
+            if (MemexState.expandedNodes[id]) {
+                collapseSubject(id);
+            } else {
+                expandSubject(id);
+            }
             renderVSCodeFileTree();
+        } 
+        // Router B: User clicked an Article File Document
+        else if (MemexState.db[id]) {
+            if (MemexState.expandedNodes[id]) {
+                collapseDoc(id);
+            } else {
+                expandDoc(id);
+            }
+            projectToViewport('A', id, 0);
+            renderVSCodeFileTree();
+        } 
+        // Router C: User clicked a micro-page element index sheet
+        else if (id.startsWith('MOON_')) {
+            const parts = id.split('_');
+            const pageIdx = parseInt(parts.pop());
+            const docId = parts.slice(1).join('_');
+            projectToViewport('A', docId, pageIdx);
         }
+    }
+/* === CRITICAL FIX END: INTERACTION INTERFACES SECURED === */
 
 /* === START HIGHLIGHTING HERE FOR FOLDER TOGGLE LOGIC === */
+// Decoupled Folder Toggle Matrix: Forces sidebar trees to expand immediately regardless of map view state
         function expandSubject(id) {
+            // STATE ENHANCEMENT: Safely force the storage state to open first so file trees refresh smoothly
+            MemexState.expandedNodes[id] = true;
+            
+            // Map Canvas Guard: If topology datasets are missing or uninitialized, exit safely here
+            if (!MemexState.nodesDataset || !MemexState.edgesDataset) return;
+            
             Object.entries(MemexState.db).forEach(([k, d]) => {
                 if (d.parent === id && !MemexState.nodesDataset.get(k)) {
                     const docNode = MemexState.nodesDataset.get(id);
@@ -909,21 +996,37 @@
                     MemexState.edgesDataset.add({ id: `e_${k}`, from: id, to: k, color: { color: '#0b1a30', opacity: 0.4 }, width: 2 });
                 }
             });
-            MemexState.expandedNodes[id] = true;
+            
             if (typeof renderGlobalLinks === 'function') renderGlobalLinks();
         }
 
         function collapseSubject(id) {
-            Object.entries(MemexState.db).forEach(([k, d]) => {
-                if (d.parent === id) { if (MemexState.expandedNodes[k]) collapseDoc(k); if (MemexState.nodesDataset.get(k)) MemexState.nodesDataset.remove(k); if (MemexState.edgesDataset.get(`e_${k}`)) MemexState.edgesDataset.remove(`e_${k}`); }
-            });
+            // Remove from state registry immediately
             delete MemexState.expandedNodes[id];
+            
+            Object.entries(MemexState.db).forEach(([k, d]) => {
+                if (d.parent === id) { 
+                    if (MemexState.expandedNodes[k]) collapseDoc(k); 
+                    
+                    // Safe canvas cleanups: Prevent graph orphans from throwing errors
+                    if (MemexState.nodesDataset && MemexState.nodesDataset.get(k)) MemexState.nodesDataset.remove(k); 
+                    if (MemexState.edgesDataset && MemexState.edgesDataset.get(`e_${k}`)) MemexState.edgesDataset.remove(`e_${k}`); 
+                }
+            });
+            
             if (typeof renderGlobalLinks === 'function') renderGlobalLinks();
         }
 /* === STOP HIGHLIGHTING HERE FOR FOLDER TOGGLE LOGIC === */
+        // Vannevar Bush Trailing Engine: Evolved to decouple sidebar tree state from canvas rendering parameters
         function expandDoc(id) {
-            const docNode = MemexState.nodesDataset.get(id);
-            if (!docNode) return;
+            // STATE ENHANCEMENT: Immediately toggle database expansion so the Sidebar Tree works anywhere, anytime
+            MemexState.expandedNodes[id] = true;
+            
+            // Check if a structural coordinate node is actively drawn on the network canvas layer right now
+            const docNode = (MemexState.nodesDataset) ? MemexState.nodesDataset.get(id) : null;
+            if (!docNode) return; // Quietly exit canvas rendering if looking at Desk mode or if folder is collapsed
+            
+            // 1. Plot ordinary child sheets (Pages)
             MemexState.db[id].pages.forEach((p, i) => {
                 const mId = `MOON_${id}_${i}`;
                 if (!MemexState.nodesDataset.get(mId)) {
@@ -932,7 +1035,22 @@
                     MemexState.edgesDataset.add({ id: `e_${mId}`, from: id, to: mId, color: { color: '#b89047', opacity: 0.7 }, width: 1.5, dashed: true });
                 }
             });
-            MemexState.expandedNodes[id] = true;
+
+            // 2. Plot nested full Article Files linked in a linear associative trail branch
+            Object.entries(MemexState.db).forEach(([k, d]) => {
+                if (d.parent === id && !MemexState.nodesDataset.get(k)) {
+                    MemexState.nodesDataset.add({ 
+                        id: k, label: d.title, 
+                        x: docNode.x + 130, y: docNode.y + 130, 
+                        shape: 'dot', size: 18, 
+                        font: { face: 'Inter', size: 12, bold: true, color: '#1c2331' }, 
+                        color: { background: '#b89047', border: '#0b1a30' }, borderWidth: 2 
+                    });
+                    MemexState.edgesDataset.add({ id: `e_${k}`, from: id, to: k, color: { color: '#b89047', opacity: 0.95 }, width: 3 });
+                    
+                    if (MemexState.expandedNodes[k]) expandDoc(k);
+                }
+            });
         }
 
         function collapseDoc(id) {
@@ -941,9 +1059,118 @@
                     const mId = `MOON_${id}_${i}`; if (MemexState.nodesDataset.get(mId)) MemexState.nodesDataset.remove(mId); if (MemexState.edgesDataset.get(`e_${mId}`)) MemexState.edgesDataset.remove(`e_${mId}`);
                 });
             }
+            // Cascade downward to cleanly strip nested sub-articles off the map when a trail parent is folded
+            Object.entries(MemexState.db).forEach(([k, d]) => {
+                if (d.parent === id) {
+                    if (MemexState.expandedNodes[k]) collapseDoc(k);
+                    if (MemexState.nodesDataset.get(k)) MemexState.nodesDataset.remove(k);
+                    if (MemexState.edgesDataset.get(`e_${k}`)) MemexState.edgesDataset.remove(`e_${k}`);
+                }
+            });
             delete MemexState.expandedNodes[id];
         }
 
+        /* === START HIGHLIGHTING HERE FOR FILE EXPLORER DRAG AND DROP EXTENSION === */
+        function handleFileTreeDragStart(e, id, type) {
+            e.stopPropagation();
+            e.dataTransfer.setData('text/plain', JSON.stringify({ id: id, type: type }));
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleFileTreeDragOver(e, targetId, targetType) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.style.background = 'rgba(184, 144, 71, 0.2)';
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleFileTreeDragLeave(e) {
+            e.stopPropagation();
+            e.currentTarget.style.background = '';
+        }
+
+        function handleFileTreeDrop(e, targetId, targetType) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.style.background = '';
+            
+            try {
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                const sourceId = data.id;
+                const sourceType = data.type;
+                
+                if (sourceId === targetId && sourceType === targetType) return;
+                
+                // DRAG PIPELINE RE-ROUTE: Allows an Article File to be dropped onto a Folder OR another Article File
+                if (sourceType === 'doc' && (targetType === 'subject' || targetType === 'doc')) {
+                    const doc = MemexState.db[sourceId];
+                    if (doc && doc.parent !== targetId) {
+                        // Bush Trail Loop Shield: Ensure user isn't creating an infinite circular structural link loop
+                        let loopPointer = targetId;
+                        let isLooping = false;
+                        while (loopPointer) {
+                            if (loopPointer === sourceId) { isLooping = true; break; }
+                            loopPointer = MemexState.db[loopPointer] ? MemexState.db[loopPointer].parent : null;
+                        }
+                        if (isLooping) return;
+
+                        doc.parent = targetId;
+                        
+                        // Force-activate expansion states so the items instantly reveal their nested locations
+                        if (targetType === 'doc') {
+                            expandDoc(targetId);
+                        } else if (targetType === 'subject') {
+                            expandSubject(targetId);
+                        }
+                        
+                        if (MemexState.nodesDataset) {
+                            if (MemexState.edgesDataset.get(`e_${sourceId}`)) {
+                                MemexState.edgesDataset.remove(`e_${sourceId}`);
+                            }
+                            // Re-align and refresh the visual graph canvas layouts
+                            if (targetType === 'doc') {
+                                collapseDoc(targetId); expandDoc(targetId);
+                            } else if (targetType === 'subject') {
+                                collapseSubject(targetId); expandSubject(targetId);
+                            }
+                        }
+                        renderVSCodeFileTree();
+                        if (typeof renderGlobalLinks === 'function') renderGlobalLinks();
+                    }
+                }
+                else if (sourceType === 'page' && targetType === 'doc') {
+                    const parts = sourceId.split('||');
+                    const sourceDocId = parts[0];
+                    const sourcePageIdx = parseInt(parts[1]);
+                    if (sourceDocId === targetId) return;
+                    
+                    const sourceDoc = MemexState.db[sourceDocId];
+                    const targetDoc = MemexState.db[targetId];
+                    
+                    if (sourceDoc && targetDoc) {
+                        const [movedPage] = sourceDoc.pages.splice(sourcePageIdx, 1);
+                        if (sourceDoc.pages.length === 0) {
+                            sourceDoc.pages.push({ heading: "Blank Sheet", body: "Empty slate entry." });
+                        }
+                        targetDoc.pages.push(movedPage);
+                        
+                        ['A', 'B'].forEach(vp => {
+                            if (MemexState.viewports[vp].docId === sourceDocId || MemexState.viewports[vp].docId === targetId) {
+                                projectToViewport(vp, MemexState.viewports[vp].docId, 0);
+                            }
+                        });
+                        
+                        if (MemexState.expandedNodes[sourceDocId]) { collapseDoc(sourceDocId); expandDoc(sourceDocId); }
+                        if (MemexState.expandedNodes[targetId]) { collapseDoc(targetId); expandDoc(targetId); }
+                        renderVSCodeFileTree();
+                    }
+                }
+            } catch (err) {
+                console.error("Memex drag transfer validation error:", err);
+            }
+        }
+
+        // RECURSIVE TREE COMPILER: Iterates down associative branches to generate multi-tiered paths
         function renderVSCodeFileTree() {
             const targets = ['map-file-explorer', 'desk-file-explorer'];
             targets.forEach(targetId => {
@@ -951,9 +1178,69 @@
                 if(!container) return; 
                 container.innerHTML = '';
 
+                // Nested document sub-compiler block
+                function assembleBranchElement(docId, docData, mountPoint) {
+                    const docNode = document.createElement('div');
+                    docNode.className = 'tree-node tree-file';
+                    
+                    // Track nested depth loops to shift children elements linearly inward
+                    let depth = 0;
+                    let track = docData.parent;
+                    while (MemexState.db[track]) {
+                        depth++;
+                        track = MemexState.db[track].parent;
+                    }
+                    docNode.style.paddingLeft = `${8 + (depth * 14)}px`;
+                    
+                    docNode.setAttribute('draggable', 'true');
+                    docNode.addEventListener('dragstart', (e) => handleFileTreeDragStart(e, docId, 'doc'));
+                    docNode.addEventListener('dragover', (e) => handleFileTreeDragOver(e, docId, 'doc'));
+                    docNode.addEventListener('dragleave', (e) => handleFileTreeDragLeave(e));
+                    docNode.addEventListener('drop', (e) => handleFileTreeDrop(e, docId, 'doc'));
+                    
+                    docNode.innerText = (depth > 0 ? `↳ 📄 ` : `📄 `) + docData.title;
+                    docNode.onclick = (e) => { e.stopPropagation(); handleLeftClickNode(docId); };
+                    docNode.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showSidebarContextMenu(e.pageX, e.pageY, docId, 'doc'); };
+                    mountPoint.appendChild(docNode);
+
+                    const pagesBox = document.createElement('div');
+                    pagesBox.className = `tree-children ${MemexState.expandedNodes[docId] ? 'expanded' : ''}`;
+                    
+                    docData.pages.forEach((page, pIdx) => {
+                        const pageNode = document.createElement('div');
+                        pageNode.className = 'tree-node tree-page';
+                        pageNode.style.paddingLeft = `${32 + (depth * 14)}px`;
+                        
+                        pageNode.setAttribute('draggable', 'true');
+                        pageNode.addEventListener('dragstart', (e) => handleFileTreeDragStart(e, `${docId}||${pIdx}`, 'page'));
+                        
+                        pageNode.innerText = `📝 p.${pIdx + 1}: ${page.heading}`;
+                        pageNode.onclick = (e) => { e.stopPropagation(); projectToViewport('A', docId, pIdx); };
+                        pageNode.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showSidebarContextMenu(e.pageX, e.pageY, `${docId}||${pIdx}`, 'page'); };
+                        pagesBox.appendChild(pageNode);
+                    });
+                    mountPoint.appendChild(pagesBox);
+
+                    // Search database registers for any sub-articles linked directly to this file trail
+                    Object.entries(MemexState.db).forEach(([childId, childData]) => {
+                        if (childData.parent === docId) {
+                            const subTrailContainer = document.createElement('div');
+                            subTrailContainer.className = `tree-children ${MemexState.expandedNodes[docId] ? 'expanded' : ''}`;
+                            assembleBranchElement(childId, childData, subTrailContainer);
+                            mountPoint.appendChild(subTrailContainer);
+                        }
+                    });
+                }
+
                 Object.entries(MemexState.subjects).forEach(([subId, subName]) => {
                     const folderNode = document.createElement('div');
                     folderNode.className = 'tree-node tree-folder';
+                    
+                    folderNode.setAttribute('draggable', 'true');
+                    folderNode.addEventListener('dragstart', (e) => handleFileTreeDragStart(e, subId, 'subject'));
+                    folderNode.addEventListener('dragover', (e) => handleFileTreeDragOver(e, subId, 'subject'));
+                    folderNode.addEventListener('dragleave', (e) => handleFileTreeDragLeave(e));
+                    folderNode.addEventListener('drop', (e) => handleFileTreeDrop(e, subId, 'subject'));
                     
                     const arrow = document.createElement('span');
                     arrow.className = `tree-arrow ${MemexState.expandedNodes[subId] ? 'expanded' : ''}`;
@@ -971,34 +1258,19 @@
                     const childrenBox = document.createElement('div');
                     childrenBox.className = `tree-children ${MemexState.expandedNodes[subId] ? 'expanded' : ''}`;
 
+                    // Mount primary root documents belonging directly to the top-tier topic folder
                     Object.entries(MemexState.db).forEach(([docId, docData]) => {
                         if (docData.parent === subId) {
-                            const docNode = document.createElement('div');
-                            docNode.className = 'tree-node tree-file';
-                            docNode.innerText = `📄 ${docData.title}`;
-                            docNode.onclick = (e) => { e.stopPropagation(); handleLeftClickNode(docId); };
-                            docNode.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showSidebarContextMenu(e.pageX, e.pageY, docId, 'doc'); };
-                            childrenBox.appendChild(docNode);
-
-                            const pagesBox = document.createElement('div');
-                            pagesBox.className = `tree-children ${MemexState.expandedNodes[docId] ? 'expanded' : ''}`;
-                            
-                            docData.pages.forEach((page, pIdx) => {
-                                const pageNode = document.createElement('div');
-                                pageNode.className = 'tree-node tree-page';
-                                pageNode.innerText = `📝 p.${pIdx + 1}: ${page.heading}`;
-                                pageNode.onclick = (e) => { e.stopPropagation(); projectToViewport('A', docId, pIdx); };
-                                pageNode.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showSidebarContextMenu(e.pageX, e.pageY, `${docId}||${pIdx}`, 'page'); };
-                                pagesBox.appendChild(pageNode);
-                            });
-                            childrenBox.appendChild(pagesBox);
+                            assembleBranchElement(docId, docData, childrenBox);
                         }
                     });
                     container.appendChild(childrenBox);
                 });
             });
         }
+/* === STOP HIGHLIGHTING HERE FOR FILE EXPLORER DRAG AND DROP EXTENSION === */
 
+/* === START OF LANDMARK: PROJECT TO VIEWPORT FUNCTION === */
 /* === START OF LANDMARK: PROJECT TO VIEWPORT FUNCTION === */
 function projectToViewport(vp, docId, pageIdx) {
     if (!MemexState.db[docId]) return;
@@ -1018,7 +1290,22 @@ function projectToViewport(vp, docId, pageIdx) {
     const page = doc.pages[pageIdx];
     const contentContainer = document.getElementById(`content-${vp}`);
     if (contentContainer) {
+        // Auto-Detect Operational Mode: Check if this file is an ingested web stream url resource tracker
+        let breakoutRibbon = '';
+        if (docId.startsWith('DOC_NET_') && page.body) {
+            const urlExtraction = page.body.match(/Source Track URL:\s*(https?:\/\/\S+)/i);
+            const verifiedUrl = urlExtraction ? urlExtraction[1] : '#';
+            
+            breakoutRibbon = `
+                <div style="background: rgba(184, 144, 71, 0.1); border: 1px solid var(--gold-brass); padding: 8px 12px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.7rem; color: var(--navy-solid); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; width: 100%;">
+                    <span>⚠️ Security parameters (X-Frame-Options) may block this site from rendering inside inline frames.</span>
+                    <a href="${verifiedUrl}" target="_blank" class="view-btn" style="text-decoration: none; white-space: nowrap; font-size: 0.65rem; padding: 4px 8px; font-weight: bold; margin-left: 10px;">LAUNCH BREAKOUT WINDOW ➔</a>
+                </div>
+            `;
+        }
+
         contentContainer.innerHTML = `
+            ${breakoutRibbon}
             <div class="editable-title" contenteditable="true" data-vp="${vp}" data-field="title">${doc.title}</div>
             <div class="editable-subheading" contenteditable="true" data-vp="${vp}" data-field="heading">${page.heading}</div>
             <div class="editable-body" contenteditable="true" data-vp="${vp}" data-field="body">${page.body}</div>
@@ -1035,7 +1322,6 @@ function projectToViewport(vp, docId, pageIdx) {
         anchorCanvasResolution(docCan);
         anchorCanvasResolution(notesCan);
         
-        // Wipe old sketch context layers completely clear so old ink doesn't bleed through
         if (docCan) docCan.getContext('2d').clearRect(0, 0, docCan.width, docCan.height);
         if (notesCan) notesCan.getContext('2d').clearRect(0, 0, notesCan.width, notesCan.height);
         
@@ -1276,6 +1562,7 @@ function projectToViewport(vp, docId, pageIdx) {
             document.getElementById('ctx-create-topic').style.display = type === 'subject' || type === 'root' ? 'block' : 'none';
             document.getElementById('ctx-create-article').style.display = type === 'subject' ? 'block' : 'none';
             document.getElementById('ctx-create-page').style.display = type === 'doc' ? 'block' : 'none';
+            document.getElementById('ctx-ingest').style.display = type === 'subject' ? 'block' : 'none';
             document.getElementById('ctx-rename').style.display = type !== 'root' ? 'block' : 'none';
             document.getElementById('ctx-delete').style.display = type !== 'root' ? 'block' : 'none';
             document.getElementById('ctx-proj-alpha').style.display = type === 'doc' || type === 'page' ? 'block' : 'none';
@@ -1283,6 +1570,7 @@ function projectToViewport(vp, docId, pageIdx) {
             
             menu.style.left = `${x}px`; menu.style.top = `${y}px`; menu.style.display = 'block';
         }
+
 /* === STOP HIGHLIGHTING HERE FOR CONTEXT MENU VISIBILITY MODIFIERS === */
         function sidebarCastTargetViewport(vp) {
             const target = MemexState.rightClickedSidebarTarget;
@@ -1307,8 +1595,58 @@ function projectToViewport(vp, docId, pageIdx) {
             });
         }
 /* === STOP HIGHLIGHTING HERE FOR BROAD SIDEBAR COUPLING === */
-        function sidebarMechanicalCreateTopic() {
-            const name = prompt("Enter New Module Folder Name:", "ADVANCED CRYPTOGRAPHY");
+// Bespoke Async Dialog Orchestration Layer
+        function showMemexDialog({ type, message, defaultValue = '' }) {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('memex-modal-overlay');
+                const header = document.getElementById('memex-modal-header');
+                const body = document.getElementById('memex-modal-body');
+                const inputContainer = document.getElementById('memex-modal-input-container');
+                const input = document.getElementById('memex-modal-input');
+                const cancelBtn = document.getElementById('memex-modal-cancel');
+                const confirmBtn = document.getElementById('memex-modal-confirm');
+                
+                body.innerHTML = message;
+                if (type === 'alert') header.innerText = 'MEMEX // ARCHIVAL SYSTEM NOTICE';
+                else if (type === 'confirm') header.innerText = 'MEMEX // VERIFY OPERATION PARAMETERS';
+                else if (type === 'prompt') header.innerText = 'MEMEX // ARCHIVAL PARAMETER INPUT';
+                
+                if (type === 'prompt') {
+                    inputContainer.style.display = 'block';
+                    input.value = defaultValue;
+                } else {
+                    inputContainer.style.display = 'none';
+                }
+                
+                cancelBtn.style.display = (type === 'confirm' || type === 'prompt') ? 'inline-block' : 'none';
+                overlay.style.display = 'flex';
+                
+                if (type === 'prompt') {
+                    setTimeout(() => {
+                        input.focus();
+                        input.select();
+                    }, 50);
+                }
+
+                function terminate(result) {
+                    overlay.style.display = 'none';
+                    confirmBtn.onclick = null;
+                    cancelBtn.onclick = null;
+                    resolve(result);
+                }
+
+                confirmBtn.onclick = () => {
+                    terminate(type === 'prompt' ? input.value : true);
+                };
+                
+                cancelBtn.onclick = () => {
+                    terminate(type === 'prompt' ? null : false);
+                };
+            });
+        }
+
+        async function sidebarMechanicalCreateTopic() {
+            const name = await showMemexDialog({ type: 'prompt', message: 'Enter New Module Folder Name:', defaultValue: 'ADVANCED CRYPTOGRAPHY' });
             if (!name) return;
             const newId = "SUBJ_" + Math.random().toString(36).substr(2, 9).toUpperCase();
             MemexState.subjects[newId] = name;
@@ -1318,10 +1656,10 @@ function projectToViewport(vp, docId, pageIdx) {
             renderVSCodeFileTree();
         }
 
-        function sidebarMechanicalCreateArticle() {
+        async function sidebarMechanicalCreateArticle() {
             const target = MemexState.rightClickedSidebarTarget;
             if (!target || target.type !== 'subject') return;
-            const name = prompt("Enter New Document File Title:", "Quantum Mechanics Core Draft");
+            const name = await showMemexDialog({ type: 'prompt', message: 'Enter New Document File Title:', defaultValue: 'Quantum Mechanics Core Draft' });
             if (!name) return;
             const newId = "DOC_USER_" + Math.random().toString(36).substr(2, 9).toUpperCase();
             MemexState.db[newId] = { title: name, parent: target.id, pages: [{ heading: "Initial Section Entry", body: "Draft content variables directly inside this editable console text layer..." }] };
@@ -1336,13 +1674,13 @@ function projectToViewport(vp, docId, pageIdx) {
             collapseDoc(target.id); expandDoc(target.id); renderVSCodeFileTree();
         }
 
-        function sidebarMechanicalRename() {
+        async function sidebarMechanicalRename() {
             const target = MemexState.rightClickedSidebarTarget;
             if (!target || target.type === 'root') return;
             
             if (target.type === 'subject') {
                 const oldName = MemexState.subjects[target.id];
-                const newName = prompt("Rename Module Folder:", oldName);
+                const newName = await showMemexDialog({ type: 'prompt', message: 'Rename Module Folder:', defaultValue: oldName });
                 if (newName && newName.trim() !== "") {
                     MemexState.subjects[target.id] = newName.trim();
                     if (MemexState.nodesDataset && MemexState.nodesDataset.get(target.id)) {
@@ -1352,7 +1690,7 @@ function projectToViewport(vp, docId, pageIdx) {
                 }
             } else if (target.type === 'doc') {
                 const oldName = MemexState.db[target.id].title;
-                const newName = prompt("Rename Document File Title:", oldName);
+                const newName = await showMemexDialog({ type: 'prompt', message: 'Rename Document File Title:', defaultValue: oldName });
                 if (newName && newName.trim() !== "") {
                     MemexState.db[target.id].title = newName.trim();
                     if (MemexState.nodesDataset && MemexState.nodesDataset.get(target.id)) {
@@ -1365,7 +1703,7 @@ function projectToViewport(vp, docId, pageIdx) {
                 const docId = parts[0];
                 const pIdx = parseInt(parts[1]);
                 const oldName = MemexState.db[docId].pages[pIdx].heading;
-                const newName = prompt("Rename Page Index Heading:", oldName);
+                const newName = await showMemexDialog({ type: 'prompt', message: 'Rename Page Index Heading:', defaultValue: oldName });
                 if (newName && newName.trim() !== "") {
                     MemexState.db[docId].pages[pIdx].heading = newName.trim();
                     const mId = `MOON_${docId}_${pIdx}`;
@@ -1377,13 +1715,14 @@ function projectToViewport(vp, docId, pageIdx) {
             }
         }
 
-        function sidebarMechanicalDelete() {
+        async function sidebarMechanicalDelete() {
             const target = MemexState.rightClickedSidebarTarget;
             if (!target || target.type === 'root') return;
             
             if (target.type === 'subject') {
                 const name = MemexState.subjects[target.id];
-                if (confirm(`Are you sure you want to completely delete the Folder "${name}" and all containing articles?`)) {
+                const proceed = await showMemexDialog({ type: 'confirm', message: `Are you sure you want to completely delete the Folder "<strong>${name}</strong>" and all containing articles?` });
+                if (proceed) {
                     Object.keys(MemexState.db).forEach(docId => {
                         if (MemexState.db[docId].parent === target.id) {
                             collapseDoc(docId);
@@ -1399,7 +1738,8 @@ function projectToViewport(vp, docId, pageIdx) {
                 }
             } else if (target.type === 'doc') {
                 const title = MemexState.db[target.id].title;
-                if (confirm(`Are you sure you want to permanently delete the Article File "${title}"?`)) {
+                const proceed = await showMemexDialog({ type: 'confirm', message: `Are you sure you want to permanently delete the Article File "<strong>${title}</strong>"?` });
+                if (proceed) {
                     collapseDoc(target.id);
                     if (MemexState.nodesDataset && MemexState.nodesDataset.get(target.id)) MemexState.nodesDataset.remove(target.id);
                     if (MemexState.edgesDataset && MemexState.edgesDataset.get(`e_${target.id}`)) MemexState.edgesDataset.remove(`e_${target.id}`);
@@ -1412,7 +1752,8 @@ function projectToViewport(vp, docId, pageIdx) {
                 const docId = parts[0];
                 const pIdx = parseInt(parts[1]);
                 const heading = MemexState.db[docId].pages[pIdx].heading;
-                if (confirm(`Are you sure you want to slice away Page Index "${heading}"?`)) {
+                const proceed = await showMemexDialog({ type: 'confirm', message: `Are you sure you want to slice away Page Index "<strong>${heading}</strong>"?` });
+                if (proceed) {
                     collapseDoc(docId);
                     MemexState.db[docId].pages.splice(pIdx, 1);
                     if (MemexState.db[docId].pages.length === 0) {
@@ -1423,9 +1764,7 @@ function projectToViewport(vp, docId, pageIdx) {
                 }
             }
         }
-
 /* === STOP HIGHLIGHTING HERE FOR MECHANICAL RE-NAME AND REMOVAL ENGINES === */
-
 /* === START HIGHLIGHTING HERE FOR VIEWPORT LINKER IMPLEMENTATION === */
         function insertBlankPageMechanicalLever() {
             let activeDocId = MemexState.viewports.A.docId || Object.keys(MemexState.db)[0];
@@ -1438,7 +1777,6 @@ function projectToViewport(vp, docId, pageIdx) {
         function renderGlobalLinks() {
             if (!MemexState.edgesDataset) return;
             
-            // Wipe existing structural link lines from the map canvas to prevent phantom duplicates
             const existingLinks = MemexState.edgesDataset.get({
                 filter: function (item) { return item.id && item.id.startsWith('link_'); }
             });
@@ -1446,13 +1784,17 @@ function projectToViewport(vp, docId, pageIdx) {
                 MemexState.edgesDataset.remove(existingLinks.map(e => e.id));
             }
 
-            // Redraw based on current visible anchors
             MemexState.links.forEach((linkObj, index) => {
-                // If the doc is expanded, anchor to the doc. If collapsed, fall back to its parent (the 'planet')
-                const fromAnchor = MemexState.nodesDataset.get(linkObj.from) ? linkObj.from : MemexState.db[linkObj.from].parent;
-                const toAnchor = MemexState.nodesDataset.get(linkObj.to) ? linkObj.to : MemexState.db[linkObj.to].parent;
+                // Fetch direct database references to check if linked files still exist
+                const fromDoc = MemexState.db[linkObj.from];
+                const toDoc = MemexState.db[linkObj.to];
                 
-                // Avoid drawing a looping line if both documents collapse into the exact same parent folder
+                // Safety Shield: If either document was renamed or missing, skip cleanly instead of crashing
+                if (!fromDoc || !toDoc) return; 
+
+                const fromAnchor = MemexState.nodesDataset.get(linkObj.from) ? linkObj.from : fromDoc.parent;
+                const toAnchor = MemexState.nodesDataset.get(linkObj.to) ? linkObj.to : toDoc.parent;
+                
                 if (fromAnchor !== toAnchor) {
                     MemexState.edgesDataset.add({
                         id: `link_render_${index}`,
@@ -1460,43 +1802,40 @@ function projectToViewport(vp, docId, pageIdx) {
                         to: toAnchor,
                         color: { color: '#b89047', opacity: 0.85 },
                         width: 3,
-                        physics: false, // Disables gravitational pull on these specific connections
-                        dashes: true    // Vis.js expects 'dashes', not 'dashed'
+                        physics: false,
+                        dashes: true
                     });
                 }
             });
         }
 
-        function linkActiveDeskViewportsMechanicalLever() {
+        async function linkActiveDeskViewportsMechanicalLever() {
             const docIdA = MemexState.viewports.A.docId;
             const docIdB = MemexState.viewports.B.docId;
             if (!docIdA || !docIdB) {
-                alert("Cannot link: Both Viewport Alpha and Viewport Beta must have documents loaded.");
+                await showMemexDialog({ type: 'alert', message: "Cannot link: Both Viewport Alpha and Viewport Beta must have documents loaded." });
                 return;
             }
             if (docIdA === docIdB) {
-                alert("Cannot link a document to itself.");
+                await showMemexDialog({ type: 'alert', message: "Cannot link a document to itself." });
                 return;
             }
             
-            // Register link connection into archival registry array
             const alreadyLinked = MemexState.links.some(l => 
                 (l.from === docIdA && l.to === docIdB) || (l.from === docIdB && l.to === docIdA)
             );
             
             if (alreadyLinked) {
-                alert("These viewports are already linked.");
+                await showMemexDialog({ type: 'alert', message: "These viewports are already linked within the archival graph registry." });
                 return;
             }
             
             MemexState.links.push({ from: docIdA, to: docIdB });
-            
-            // Calculate and draw dynamic anchoring
             renderGlobalLinks();
             
-            alert(`Bidirectional association established:\n[${docIdA}] ↔ [${docIdB}]`);
+            await showMemexDialog({ type: 'alert', message: `Bidirectional association established successfully:<br><br><strong style="font-family: var(--font-mono); color: var(--gold-brass);">[${docIdA}] ↔ [${docIdB}]</strong>` });
         }
-/* === STOP HIGHLIGHTING HERE FOR VIEWPORT LINKER IMPLEMENTATION === */        
+/* === STOP HIGHLIGHTING HERE FOR VIEWPORT LINKER IMPLEMENTATION === */
 /* === START OF LANDMARK: NEIGHBORHOOD MINI-MAP FIX === */
 function updateMiniMap(docId) {
     const container = document.getElementById('mini-neighborhood-graph');
@@ -1539,19 +1878,85 @@ function updateMiniMap(docId) {
             dz.addEventListener('drop', (e) => { handlePlatenFileSelection(e.dataTransfer.files); });
         }
 
+        async function mapMechanicalIngestDocument() {
+            const nodeId = MemexState.rightClickedContextNode;
+            if (nodeId && MemexState.subjects[nodeId]) {
+                await initiatePlatenIngestionPipeline(nodeId);
+            }
+        }
+
+        async function sidebarMechanicalIngestDocument() {
+            const target = MemexState.rightClickedSidebarTarget;
+            if (target && target.type === 'subject') {
+                await initiatePlatenIngestionPipeline(target.id);
+            }
+        }
+
+        async function initiatePlatenIngestionPipeline(targetSubId) {
+            const subId = targetSubId || Object.keys(MemexState.subjects)[0];
+            MemexState.activeIngestSubjectId = subId; 
+            
+            const urlInput = await showMemexDialog({ 
+                type: 'prompt', 
+                message: '<strong>TARGETED MEMEX INGESTION SYSTEM</strong><br>Paste a live webpage or document URL below to stream it into the selected folder node, or leave blank to upload local files:', 
+                defaultValue: 'https://' 
+            });
+            
+            if (urlInput === null) return;
+            
+            if (urlInput.trim() !== '' && urlInput.trim() !== 'https://' && urlInput.trim() !== 'http://') {
+                let targetUrl = urlInput.trim();
+                if (!/^https?:\/\//i.test(targetUrl)) {
+                    targetUrl = 'https://' + targetUrl;
+                }
+                
+                const newDocId = "DOC_NET_" + Math.random().toString(36).substr(2, 9).toUpperCase();
+                const iframePreview = `<iframe src="${targetUrl}" style="width:100%; height:650px; border:1px solid var(--border-crisp); border-radius:4px; margin-top:10px;" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>`;
+                const cleanTitle = targetUrl.replace(/^https?:\/\/(www\.)?/i, '');
+                
+                MemexState.db[newDocId] = { 
+                    title: `Link: ${cleanTitle.substring(0, 26)}${cleanTitle.length > 26 ? '...' : ''}`, 
+                    parent: subId, 
+                    pages: [{ 
+                        heading: "Live Remote Web Interface", 
+                        body: `Source Track URL: ${targetUrl}\n\n${iframePreview}` 
+                    }] 
+                };
+                
+                expandSubject(subId); 
+                renderVSCodeFileTree(); 
+                switchToView('desk'); 
+                projectToViewport('B', newDocId, 0);
+                MemexState.activeIngestSubjectId = null;
+            } else {
+                document.getElementById('hidden-file-picker').click();
+            }
+        }
+
         function handlePlatenFileSelection(files) {
             if (!files || files.length === 0) return;
             const file = files[0]; const reader = new FileReader();
             reader.onload = function(e) {
-                const subId = Object.keys(MemexState.subjects)[0];
+                const subId = MemexState.activeIngestSubjectId || Object.keys(MemexState.subjects)[0];
                 const newDocId = "DOC_UPLOAD_" + Math.random().toString(36).substr(2, 9).toUpperCase();
                 let graphicPreview = "Raw data registry successfully parsed into ledger matrices.";
-                if (file.type.startsWith('image/')) graphicPreview = `<img src="${e.target.result}" style="max-width:100%; border-radius:4px; border:1px solid var(--border-crisp); margin-top:10px;"/>`;
+                
+                if (file.type.startsWith('image/')) {
+                    graphicPreview = `<img src="${e.target.result}" style="max-width:100%; border-radius:4px; border:1px solid var(--border-crisp); margin-top:10px;"/>`;
+                } else if (file.type === 'application/pdf') {
+                    graphicPreview = `<iframe src="${e.target.result}" style="width:100%; height:650px; border:1px solid var(--border-crisp); border-radius:4px; margin-top:10px;" type="application/pdf"></iframe>`;
+                }
                 
                 MemexState.db[newDocId] = { title: `Import: ${file.name}`, parent: subId, pages: [{ heading: "Microfilm Ledger Attachment", body: `Parameters:\nSize: ${(file.size/1024).toFixed(2)} KB\nType: ${file.type}\n\n${graphicPreview}` }] };
                 expandSubject(subId); renderVSCodeFileTree(); switchToView('desk'); projectToViewport('B', newDocId, 0);
+                MemexState.activeIngestSubjectId = null; 
             };
-            if (file.type.startsWith('image/')) reader.readAsDataURL(file); else reader.readAsText(file);
+            
+            if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+                reader.readAsDataURL(file);
+            } else {
+                reader.readAsText(file);
+            }
         }
 
         function initLayoutResizers() {
@@ -1570,12 +1975,11 @@ function updateMiniMap(docId) {
                 
                 function drag(mEv) {
                     const deltaX = mEv.clientX - startX;
-/* === START HIGHLIGHTING HERE FOR RESIZER TYPO FIX === */
                     if (isSb) {
                         let w = startWidth + deltaX; if (w < 220) w = 220; if (w > 600) w = 600;
                         target.style.width = `${w}px`;
                     } else if (peerId) {
-/* === STOP HIGHLIGHTING HERE FOR RESIZER TYPO FIX === */                        let pct = ((startWidth + deltaX) / parentWidth) * 100;
+                        let pct = ((startWidth + deltaX) / parentWidth) * 100;
                         if (pct < 20) pct = 20; if (pct > 80) pct = 80; target.style.width = `${pct}%`;
                     }
                     if (MemexState.network) MemexState.network.redraw();
