@@ -746,37 +746,15 @@
         <div class="menu-item" id="ctx-proj-beta" onclick="sidebarCastTargetViewport('B')">➔ Project to Viewport Beta</div>
         <div class="menu-item" id="ctx-sidebar-toggle-pages" style="border-top:1px dashed var(--border-crisp); color:var(--crimson-alert);" onclick="togglePageVisibilityMechanicalLever()">👁️ Hide Page Nodes</div>
     </div>
-    ```
 
----
+    <div id="memex-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(11, 26, 48, 0.4); backdrop-filter: blur(2px); z-index: 2000; justify-content: center; align-items: center;">
 
-## Modification 2: Inject Toggle Text State Sync Into Map Node Click Menu
+            <div class="menu-item" id="ctx-proj-beta" onclick="sidebarCastTargetViewport('B')">➔ Project to Viewport Beta</div>
+        <div class="menu-item" id="ctx-sidebar-toggle-pages" style="border-top:1px dashed var(--border-crisp); color:var(--crimson-alert);" onclick="togglePageVisibilityMechanicalLever()">👁️ Hide Page Nodes</div>
+    </div>
 
-### Pinpoint the Location
-* **Target Area:** Go to approximately **Line 316 to Line 335**.
-* **How to get there:** Press **Ctrl + G**, type `316`, and press Enter. Look for `function showCustomRoutingMenu(x, y, nodeId)` inside your main map instantiation layout loop.
+    <div id="memex-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(11, 26, 48, 0.4); backdrop-filter: blur(2px); z-index: 2000; justify-content: center; align-items: center;">
 
-### Code to be Replaced
-Highlight and delete the logic block inside that routine:
-
-```javascript
-            function showCustomRoutingMenu(x, y, nodeId) {
-            MemexState.rightClickedContextNode = nodeId;
-            const menu = document.getElementById('routing-menu');
-            if (!menu) return;
-            
-            // Check if user targeted a Topic Folder or a micro-page element sheet
-            const isSubjectId = !!MemexState.subjects[nodeId];
-            document.getElementById('menu-node-label').innerText = isSubjectId ? `FOLDER: ${nodeId}` : `NODE: ${nodeId}`;
-            
-            // Morph layout visibility structures in real-time depending on selected asset parameter
-            document.getElementById('ctx-map-proj-alpha').style.display = isSubjectId ? 'none' : 'block';
-            document.getElementById('ctx-map-proj-beta').style.display = isSubjectId ? 'none' : 'block';
-            document.getElementById('ctx-map-ingest').style.display = isSubjectId ? 'block' : 'none';
-            
-            /* === CRITICAL FIX START: CLOSE TOPOLOGY MAP & ADD INTERACTION INTERFACES === */
-            menu.style.left = `${x}px`; menu.style.top = `${y}px`; menu.style.display = 'block';
-        }
     <div id="memex-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(11, 26, 48, 0.4); backdrop-filter: blur(2px); z-index: 2000; justify-content: center; align-items: center;">
         <div style="background: var(--bg-main); border: 2px solid var(--gold-brass); box-shadow: 0 12px 40px rgba(11, 26, 48, 0.25); border-radius: 4px; width: 440px; max-width: 90%; overflow: hidden; font-family: var(--font-body);">
             <div id="memex-modal-header" style="background: var(--navy-solid); color: #ffffff; padding: 10px 15px; font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.5px; border-bottom: 1px solid var(--gold-brass);">MEMEX // SYSTEM DIALOGUE</div>
