@@ -1,7 +1,7 @@
 {
   "short_name": "Memex",
   "name": "The Memex — Knowledge Console",
-  "start_url": "demo-code.html",
+  "start_url": "index.html",
   "background_color": "#fdfcf7",
   "theme_color": "#0b1a30",
   "display": "standalone",
