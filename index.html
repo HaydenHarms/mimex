@@ -515,6 +515,119 @@
                 text-align: center;
             }
 
+            /* === PHONE OPTIMIZATION LAYER (drawers + swipeable viewports) === */
+            .hamburger-btn {
+                display: none;
+                background: transparent;
+                border: 1px solid var(--gold-brass);
+                color: var(--gold-brass);
+                width: 34px;
+                height: 34px;
+                border-radius: 3px;
+                font-size: 1.1rem;
+                line-height: 1;
+                cursor: pointer;
+                flex-shrink: 0;
+            }
+            .drawer-overlay {
+                display: none;
+                position: fixed;
+                top: 0; left: 0; width: 100vw; height: 100vh;
+                background: rgba(11, 26, 48, 0.45);
+                z-index: 250;
+                opacity: 0;
+                transition: opacity 0.25s ease;
+            }
+            .drawer-overlay.open { display: block; opacity: 1; }
+
+            .mobile-vp-tabs { display: none; }
+            .mobile-vp-track {
+                display: flex;
+                flex-direction: row;
+                width: 100%;
+                height: 100%;
+                flex: 1;
+                min-width: 0;
+                min-height: 0;
+            }
+
+            @media (max-width: 768px) {
+                header { padding: 10px 12px; flex-wrap: wrap; gap: 8px; }
+                header h1 { font-size: 0.88rem; letter-spacing: 0.5px; }
+                .controls-wrapper { gap: 8px; }
+                .display-select { font-size: 0.68rem; padding: 6px; }
+                .view-btn { font-size: 0.68rem; padding: 6px 9px; }
+                #engine-status-tag { display: none; }
+                .hamburger-btn { display: block; order: -1; }
+
+                /* Sidebars become slide-in drawers, overlaying content instead of pushing it */
+                .map-sidebar, .desk-sidebar {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    height: 100vh;
+                    width: 82vw;
+                    max-width: 320px;
+                    transform: translateX(-100%);
+                    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+                    z-index: 300;
+                    box-shadow: 10px 0 30px rgba(11, 26, 48, 0.25);
+                }
+                .map-sidebar.drawer-open, .desk-sidebar.drawer-open {
+                    transform: translateX(0);
+                }
+                .desk-sidebar { grid-template-rows: 1fr 260px; }
+
+                #resizer-map, #resizer-desk { display: none !important; }
+
+                /* Viewport swipe carousel: both panes sit side-by-side on a 200%-wide track */
+                .desk-screens-area {
+                    flex-direction: column !important;
+                    padding: 10px;
+                    gap: 8px;
+                    overflow: hidden;
+                }
+                .mobile-vp-tabs {
+                    display: flex;
+                    flex-shrink: 0;
+                    gap: 6px;
+                }
+                .mobile-vp-tab {
+                    flex: 1;
+                    font-family: var(--font-mono);
+                    font-size: 0.72rem;
+                    font-weight: bold;
+                    padding: 9px 6px;
+                    text-align: center;
+                    background: var(--bg-panel);
+                    border: 1px solid var(--border-crisp);
+                    border-radius: 4px;
+                    color: var(--text-muted);
+                    cursor: pointer;
+                }
+                .mobile-vp-tab.active {
+                    background: var(--navy-solid);
+                    border-color: var(--navy-solid);
+                    color: #fff;
+                }
+                .mobile-vp-track {
+                    width: 200%;
+                    flex: 1;
+                    min-height: 0;
+                    touch-action: pan-y;
+                }
+                .mobile-vp-track.dragging { transition: none !important; }
+                #viewport-box-A, #viewport-box-B {
+                    width: 50% !important;
+                    max-width: 50% !important;
+                    flex: 0 0 50% !important;
+                    min-width: 0;
+                    height: 100% !important;
+                    min-height: 0 !important;
+                }
+                #resizer-viewports { display: none !important; }
+            }
+
             /* === IPAD & MOBILE OPTIMIZATION LAYER === */
             @media (max-width: 1024px) {
                 /* Expand tap areas to prevent misclicks on touch surfaces */
@@ -559,6 +672,7 @@
 <body>
 
     <header>
+        <button class="hamburger-btn" id="hamburger-btn" onclick="toggleMobileDrawer()" aria-label="Toggle file explorer">☰</button>
         <h1>Memex // Knowledge Management Console</h1>
         <div class="controls-wrapper">
             <select class="display-select" id="screen-mode" onchange="toggleMultiScreenArchitecture(this.value)">
@@ -570,6 +684,8 @@
             <div class="gold-indicator" id="engine-status-tag">SYSTEM ONLINE</div>
         </div>
     </header>
+
+    <div class="drawer-overlay" id="drawer-overlay" onclick="closeMobileDrawer()"></div>
 
     <div class="app-view active" id="view-map">
         <div class="map-sidebar">
@@ -618,6 +734,11 @@
         <div class="gutter-resizer" id="resizer-desk"></div>
 
         <div class="desk-screens-area">
+            <div class="mobile-vp-tabs" id="mobile-vp-tabs">
+                <div class="mobile-vp-tab active" id="mvp-tab-A" onclick="setMobileViewportTab('A')">Viewport Alpha</div>
+                <div class="mobile-vp-tab" id="mvp-tab-B" onclick="setMobileViewportTab('B')">Viewport Beta</div>
+            </div>
+            <div class="mobile-vp-track" id="mobile-vp-track">
             <div class="translucent-viewport" id="viewport-box-A">
                 <div class="viewport-header">
                     <span id="meta-A">INDEX</span>
@@ -726,6 +847,7 @@
                     </div>
                     <button class="wipe-btn" style="margin-left: auto;" onclick="clearActiveWorkspaceCanvases('B')">Wipe Ink</button>
                 </div>
+            </div>
             </div>
         </div>
     </div>
@@ -932,6 +1054,7 @@ setTimeout(() => {
         }
 
         function switchToView(viewMode) {
+            closeMobileDrawer();
             const mapEl = document.getElementById('view-map');
             const deskEl = document.getElementById('view-desk');
             const btn = document.getElementById('return-map-btn');
@@ -2270,7 +2393,111 @@ function handlePlatenFileSelection(files) {
             setupResizer('resizer-map', 'map-file-explorer', true);
             setupResizer('resizer-desk', 'desk-file-explorer', true);
             setupResizer('resizer-viewports', 'viewport-box-A', false, 'viewport-box-B');
+            initMobileDrawers();
+            initMobileViewportSwipe();
         }
+
+        /* === MOBILE DRAWER SYSTEM === */
+        function getActiveSidebar() {
+            const activeView = document.querySelector('.app-view.active');
+            if (!activeView) return null;
+            return activeView.querySelector('.map-sidebar, .desk-sidebar');
+        }
+
+        function toggleMobileDrawer() {
+            const sb = getActiveSidebar();
+            const overlay = document.getElementById('drawer-overlay');
+            if (!sb) return;
+            const isOpen = sb.classList.toggle('drawer-open');
+            if (overlay) overlay.classList.toggle('open', isOpen);
+        }
+
+        function closeMobileDrawer() {
+            document.querySelectorAll('.map-sidebar, .desk-sidebar').forEach(sb => sb.classList.remove('drawer-open'));
+            const overlay = document.getElementById('drawer-overlay');
+            if (overlay) overlay.classList.remove('open');
+        }
+
+        function initMobileDrawers() {
+            // Any navigation action (opening a subject, projecting a doc) should tuck the drawer away again
+            const fileTree = document.querySelectorAll('.file-tree');
+            fileTree.forEach(tree => {
+                tree.addEventListener('click', (e) => {
+                    if (window.innerWidth <= 768 && e.target.closest('.tree-page, .tree-file, .tree-folder')) {
+                        setTimeout(closeMobileDrawer, 120);
+                    }
+                });
+            });
+        }
+
+        /* === MOBILE VIEWPORT SWIPE/TAB CAROUSEL === */
+        MemexState.mobileActiveViewport = 'A';
+
+        function setMobileViewportTab(vp) {
+            MemexState.mobileActiveViewport = vp;
+            const track = document.getElementById('mobile-vp-track');
+            if (track) track.style.transform = vp === 'B' ? 'translateX(-50%)' : 'translateX(0%)';
+            document.getElementById('mvp-tab-A').classList.toggle('active', vp === 'A');
+            document.getElementById('mvp-tab-B').classList.toggle('active', vp === 'B');
+        }
+
+        function initMobileViewportSwipe() {
+            const track = document.getElementById('mobile-vp-track');
+            if (!track) return;
+            let startX = 0, startY = 0, deltaX = 0, dragging = false, decided = false, isHorizontal = false;
+
+            track.addEventListener('touchstart', (e) => {
+                if (window.innerWidth > 768 || e.touches.length !== 1) return;
+                startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+                deltaX = 0; dragging = true; decided = false; isHorizontal = false;
+                track.classList.add('dragging');
+            }, { passive: true });
+
+            track.addEventListener('touchmove', (e) => {
+                if (!dragging || e.touches.length !== 1) return;
+                const curX = e.touches[0].clientX, curY = e.touches[0].clientY;
+                deltaX = curX - startX;
+                const deltaY = curY - startY;
+                if (!decided) {
+                    if (Math.abs(deltaX) > 8 || Math.abs(deltaY) > 8) {
+                        isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
+                        decided = true;
+                    }
+                }
+                if (isHorizontal) {
+                    const base = MemexState.mobileActiveViewport === 'B' ? -50 : 0;
+                    const pct = base + (deltaX / track.getBoundingClientRect().width) * 100;
+                    const clamped = Math.max(-50, Math.min(0, pct));
+                    track.style.transform = `translateX(${clamped}%)`;
+                }
+            }, { passive: true });
+
+            track.addEventListener('touchend', () => {
+                if (!dragging) return;
+                dragging = false;
+                track.classList.remove('dragging');
+                if (isHorizontal) {
+                    const threshold = track.getBoundingClientRect().width * 0.12;
+                    if (deltaX < -threshold && MemexState.mobileActiveViewport === 'A') {
+                        setMobileViewportTab('B');
+                    } else if (deltaX > threshold && MemexState.mobileActiveViewport === 'B') {
+                        setMobileViewportTab('A');
+                    } else {
+                        setMobileViewportTab(MemexState.mobileActiveViewport);
+                    }
+                }
+            });
+        }
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                closeMobileDrawer();
+                const track = document.getElementById('mobile-vp-track');
+                if (track) track.style.transform = '';
+            } else {
+                setMobileViewportTab(MemexState.mobileActiveViewport);
+            }
+        });
 
         function setupResizer(rId, tId, isSb, peerId = null) {
             const resizer = document.getElementById(rId); const target = document.getElementById(tId);
