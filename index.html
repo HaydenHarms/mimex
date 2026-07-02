@@ -515,6 +515,10 @@
                 text-align: center;
             }
 
+        .tree-node, .conn-badge, #topology-graph, .map-sidebar, .desk-sidebar {
+            -webkit-touch-callout: none;
+        }
+
             /* === PHONE OPTIMIZATION LAYER (drawers + swipeable viewports) === */
             .hamburger-btn {
                 display: none;
@@ -1007,6 +1011,7 @@ window.onload = function() {
             initInlineEditingMutationSync();            
             initPlatenDragAndDropHooks();
             initSidebarContextMenuTriggers();
+            initConnBadgeLongPress();
             initLayoutResizers();
             initGlobalResizeHooks();
             initLedgerAutoSaveSync();
@@ -1141,6 +1146,19 @@ setTimeout(() => {
                 const nodeId = MemexState.network.getNodeAt(params.pointer.DOM);
                 if (nodeId) {
                     showCustomRoutingMenu(params.event.pageX, params.event.pageY, nodeId);
+                }
+            });
+
+            // TOUCH LONG-PRESS PARITY: vis-network's built-in "hold" event fires on a sustained
+            // touch, so a finger-hold on a map node opens the same routing menu a right-click would.
+            MemexState.network.on("hold", function (params) {
+                const nodeId = MemexState.network.getNodeAt(params.pointer.DOM);
+                if (nodeId) {
+                    if (navigator.vibrate) navigator.vibrate(12);
+                    const canvasRect = container.getBoundingClientRect();
+                    const pageX = canvasRect.left + params.pointer.DOM.x + window.scrollX;
+                    const pageY = canvasRect.top + params.pointer.DOM.y + window.scrollY;
+                    showCustomRoutingMenu(pageX, pageY, nodeId);
                 }
             });
             
@@ -1420,6 +1438,7 @@ if (!MemexState.hidePages) {
                     docNode.innerText = (depth > 0 ? `↳ 📄 ` : `📄 `) + docData.title;
                     docNode.onclick = (e) => { e.stopPropagation(); handleLeftClickNode(docId); };
                     docNode.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showSidebarContextMenu(e.pageX, e.pageY, docId, 'doc'); };
+                    bindLongPress(docNode, (x, y) => showSidebarContextMenu(x, y, docId, 'doc'));
                     mountPoint.appendChild(docNode);
 
                     const pagesBox = document.createElement('div');
@@ -1437,6 +1456,7 @@ docData.pages.forEach((page, pIdx) => {
                         pageNode.innerText = `📝 p.${pIdx + 1}: ${page.heading}`;
                         pageNode.onclick = (e) => { e.stopPropagation(); projectToViewport('A', docId, pIdx); };
                         pageNode.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showSidebarContextMenu(e.pageX, e.pageY, `${docId}||${pIdx}`, 'page'); };
+                        bindLongPress(pageNode, (x, y) => showSidebarContextMenu(x, y, `${docId}||${pIdx}`, 'page'));
                         pagesBox.appendChild(pageNode);
                     });
                     mountPoint.appendChild(pagesBox);
@@ -1473,6 +1493,7 @@ docData.pages.forEach((page, pIdx) => {
                     folderNode.appendChild(label);
                     folderNode.onclick = (e) => { e.stopPropagation(); handleLeftClickNode(subId); };
                     folderNode.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showSidebarContextMenu(e.pageX, e.pageY, subId, 'subject'); };
+                    bindLongPress(folderNode, (x, y) => showSidebarContextMenu(x, y, subId, 'subject'));
                     container.appendChild(folderNode);
 
                     const childrenBox = document.createElement('div');
@@ -1981,9 +2002,82 @@ function initDrawingCanvas(canvasId) {
                     e.preventDefault();
                     showSidebarContextMenu(e.pageX, e.pageY, 'root', 'root');
                 });
+                bindLongPress(sb.parentElement, (x, y) => showSidebarContextMenu(x, y, 'root', 'root'));
             });
         }
 /* === STOP HIGHLIGHTING HERE FOR BROAD SIDEBAR COUPLING === */
+
+/* === START OF LANDMARK: TOUCH LONG-PRESS ↔ RIGHT-CLICK PARITY LAYER === */
+// Generic long-press binder: fires `onLongPress(pageX, pageY, touchEvent)` after a sustained
+// hold, exactly mirroring what a right-click would do at that point. Cancels cleanly if the
+// finger moves (so it never fights with scrolling or the viewport swipe carousel) or lifts early.
+function bindLongPress(el, onLongPress, opts = {}) {
+    if (!el) return;
+    const duration = opts.duration || 500;
+    const moveTolerance = opts.moveTolerance || 10;
+    let timer = null, startX = 0, startY = 0, fired = false;
+
+    function clear() { if (timer) { clearTimeout(timer); timer = null; } }
+
+    el.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) { clear(); return; }
+        e.stopPropagation(); // Matches the stopPropagation() every existing oncontextmenu handler uses
+        const t = e.touches[0];
+        startX = t.clientX; startY = t.clientY; fired = false;
+        clear();
+        timer = setTimeout(() => {
+            fired = true;
+            if (navigator.vibrate) navigator.vibrate(12);
+            onLongPress(startX + window.scrollX, startY + window.scrollY, e);
+        }, duration);
+    }, { passive: true });
+
+    el.addEventListener('touchmove', (e) => {
+        if (!timer || e.touches.length !== 1) return;
+        const t = e.touches[0];
+        if (Math.abs(t.clientX - startX) > moveTolerance || Math.abs(t.clientY - startY) > moveTolerance) clear();
+    }, { passive: true });
+
+    el.addEventListener('touchend', (e) => {
+        clear();
+        if (fired) { e.preventDefault(); e.stopPropagation(); } // Swallow the trailing tap so it doesn't also fire onclick
+    });
+    el.addEventListener('touchcancel', clear);
+}
+
+// Connection badges are re-rendered into innerHTML on every projectToViewport() call, so rather than
+// re-binding after each render, delegate a single long-press watcher across the whole document.
+function initConnBadgeLongPress() {
+    let timer = null, startX = 0, startY = 0, targetBadge = null;
+    function clear() { if (timer) { clearTimeout(timer); timer = null; } targetBadge = null; }
+
+    document.addEventListener('touchstart', (e) => {
+        const badge = e.target.closest('.conn-badge');
+        if (!badge || e.touches.length !== 1) { clear(); return; }
+        const t = e.touches[0];
+        startX = t.clientX; startY = t.clientY; targetBadge = badge;
+        timer = setTimeout(() => {
+            if (!targetBadge) return;
+            if (navigator.vibrate) navigator.vibrate(12);
+            const evt = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+            Object.defineProperty(evt, 'pageX', { value: startX + window.scrollX });
+            Object.defineProperty(evt, 'pageY', { value: startY + window.scrollY });
+            targetBadge.dispatchEvent(evt);
+            targetBadge = null;
+        }, 500);
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!timer || e.touches.length !== 1) return;
+        const t = e.touches[0];
+        if (Math.abs(t.clientX - startX) > 10 || Math.abs(t.clientY - startY) > 10) clear();
+    }, { passive: true });
+
+    document.addEventListener('touchend', clear);
+    document.addEventListener('touchcancel', clear);
+}
+/* === END OF LANDMARK: TOUCH LONG-PRESS ↔ RIGHT-CLICK PARITY LAYER === */
+
 // Bespoke Async Dialog Orchestration Layer
         function showMemexDialog({ type, message, defaultValue = '' }) {
             return new Promise((resolve) => {
